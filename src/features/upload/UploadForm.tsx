@@ -1,5 +1,7 @@
 import { useForm } from "react-hook-form";
 import { FormValues } from "./types";
+import { parseLocalPdf } from "@/services/parsePDF";
+import { detectBankFromText } from "@/utils/detectBank";
 
 type Props = {
   onSubmit: (data: FormValues) => Promise<void>;
@@ -8,10 +10,32 @@ type Props = {
 };
 
 export default function UploadForm({ onSubmit, isLoading, error }: Props) {
-  const { register, handleSubmit } = useForm<FormValues>();
+  const { register, handleSubmit, getValues } = useForm<FormValues>();
+
+  // 🔹 New handler for client-side parsing
+  const handleClientParse = async () => {
+    try {
+      const { file, password } = getValues();
+      if (!file || file.length === 0) {
+        alert("Please select a PDF file first");
+        return;
+      }
+
+      const result = await parseLocalPdf(file[0], password);
+      const bank = detectBankFromText(result?.lines);
+      console.log("Client-side parsed result:", { bank, result });
+
+      alert(
+        `✅ Parsed locally!\nPages: ${result.pageCount}\nLines extracted: ${result.lines.length}\nBank: ${bank}`
+      );
+    } catch (err: any) {
+      console.error(err);
+      alert("❌ Failed to parse locally: " + err.message);
+    }
+  };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 px-4">
+    <div className="flex flex-col items-center justify-center bg-gray-100 px-4">
       <div className="max-w-lg w-full bg-white rounded-2xl shadow-lg p-8">
         <h1 className="text-2xl font-bold mb-6 text-center text-gray-900">
           Upload Your Statement
@@ -50,13 +74,24 @@ export default function UploadForm({ onSubmit, isLoading, error }: Props) {
             />
           </div>
 
+          {/* 🔹 Server-side parsing */}
           <button
             type="submit"
             disabled={isLoading}
             className="bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg py-2.5 
                        transition-all disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {isLoading ? "Parsing..." : "Upload & Parse"}
+            {isLoading ? "Parsing..." : "Upload & Parse (Server)"}
+          </button>
+
+          {/* 🔹 Client-side parsing */}
+          <button
+            type="button"
+            onClick={handleClientParse}
+            className="bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg py-2.5 
+                       transition-all"
+          >
+            Parse Locally (Client)
           </button>
         </form>
 

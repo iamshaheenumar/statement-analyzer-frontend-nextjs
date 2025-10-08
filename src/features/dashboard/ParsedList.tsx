@@ -9,7 +9,7 @@ type Props = {
 export default function ParsedList({ parsedList, onSelect }: Props) {
   if (parsedList.length === 0)
     return (
-      <div className="bg-white shadow rounded-2xl p-4 mb-6">
+      <div className="bg-white shadow rounded-2xl p-4 mb-6 mt-4">
         <h2 className="text-sm font-semibold text-gray-600 mb-3 px-1">
           🧾 Recent Parsed Statements
         </h2>
@@ -20,7 +20,7 @@ export default function ParsedList({ parsedList, onSelect }: Props) {
     );
 
   return (
-    <div className="bg-white shadow rounded-2xl p-4 mb-6">
+    <div className="bg-white shadow rounded-2xl p-4 mb-6 mt-4">
       <h2 className="text-sm font-semibold text-gray-600 mb-3 px-1">
         🧾 Recent Parsed Statements
       </h2>

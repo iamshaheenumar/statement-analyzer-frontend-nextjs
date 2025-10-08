@@ -1,23 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import axios from "axios";
-import { parseISO } from "date-fns";
-import { ParsedResponse } from "@/features/dashboard/types";
 import { FormValues } from "@/features/upload/types";
-import Dashboard from "@/features/dashboard/Dashboard";
 import UploadForm from "@/features/upload/UploadForm";
+import ParsedList from "@/features/dashboard/ParsedList";
 import { useParsedStorage } from "@/features/dashboard/useParsedStorage";
 
 export default function UploadPage() {
-  const { parsedList, addParsed, clearAll, loading } = useParsedStorage();
-  const [parsedData, setParsedData] = useState<ParsedResponse | null>(null);
-  const [filtered, setFiltered] = useState<ParsedResponse["transactions"]>([]);
+  const router = useRouter();
+  const { parsedList, addParsed } = useParsedStorage();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
 
   const onSubmit = async (data: FormValues) => {
     setError(null);
@@ -34,51 +29,33 @@ export default function UploadPage() {
         { headers: { "Content-Type": "multipart/form-data" } }
       );
 
-      setParsedData(res.data);
       addParsed(res.data);
-      setFiltered(res.data.transactions);
+      localStorage.setItem("latestParsed", JSON.stringify(res.data));
+      router.push("/dashboard");
     } catch (err: any) {
+      console.error(err);
       setError(err.response?.data?.message || "Failed to parse file");
     } finally {
       setIsLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (!parsedData) return;
+  const handleSelectParsed = (parsed: any) => {
+    localStorage.setItem("latestParsed", JSON.stringify(parsed));
+    router.push("/dashboard");
+  };
 
-    const from = dateFrom ? new Date(dateFrom) : null;
-    const to = dateTo ? new Date(dateTo) : null;
+  return (
+    <div className="min-h-screen bg-gray-100 p-6 flex flex-col items-center">
+      <div className="max-w-2xl w-full  min-h-screen">
+        {/* Upload Form */}
+        <UploadForm onSubmit={onSubmit} isLoading={isLoading} error={error} />
 
-    const filteredTxns = parsedData.transactions.filter((t) => {
-      const dateObj = parseISO(t.transaction_date);
-      const matchesText = t.description
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
-
-      const inRange =
-        (!from || (dateObj && dateObj >= from)) &&
-        (!to || (dateObj && dateObj <= to));
-      return matchesText && inRange;
-    });
-
-    setFiltered(filteredTxns);
-  }, [searchTerm, dateFrom, dateTo, parsedData]);
-
-  if (parsedData)
-    return (
-      <Dashboard
-        data={parsedData}
-        filtered={filtered}
-        setData={setParsedData}
-        searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
-        dateFrom={dateFrom}
-        dateTo={dateTo}
-        setDateFrom={setDateFrom}
-        setDateTo={setDateTo}
-      />
-    );
-
-  return <UploadForm onSubmit={onSubmit} isLoading={isLoading} error={error} />;
+        {/* Recent Statements */}
+        <div className="mt-8">
+          <ParsedList parsedList={parsedList} onSelect={handleSelectParsed} />
+        </div>
+      </div>
+    </div>
+  );
 }
