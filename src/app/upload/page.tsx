@@ -46,15 +46,13 @@ export default function UploadPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6 flex flex-col items-center">
-      <div className="max-w-2xl w-full  min-h-screen">
-        {/* Upload Form */}
-        <UploadForm onSubmit={onSubmit} isLoading={isLoading} error={error} />
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 p-6 flex flex-col items-center">
+      {/* Upload Form */}
+      <UploadForm onSubmit={onSubmit} isLoading={isLoading} error={error} />
 
-        {/* Recent Statements */}
-        <div className="mt-8">
-          <ParsedList parsedList={parsedList} onSelect={handleSelectParsed} />
-        </div>
+      {/* Recent Statements */}
+      <div className="mt-8">
+        <ParsedList parsedList={parsedList} onSelect={handleSelectParsed} />
       </div>
     </div>
   );

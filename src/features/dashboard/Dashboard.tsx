@@ -174,7 +174,7 @@ export default function Dashboard({
         <TransactionsTable transactions={filtered} />
 
         {/* Recent Parsed Statements */}
-        <ParsedList parsedList={[]} onSelect={(d: any) => setData(d)} />
+        <ParsedList parsedList={parsedList} onSelect={(d: any) => setData(d)} />
       </div>
     </div>
   );
