@@ -3,27 +3,36 @@
 import { useEffect, useState } from "react";
 import { parseISO } from "date-fns";
 import Dashboard from "@/features/dashboard/Dashboard";
-import { ParsedResponse } from "@/features/dashboard/types";
-import { useRouter } from "next/navigation";
+import { ParsedData, ParsedDataWithId } from "@/features/dashboard/types";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useParsedStorage } from "@/features/dashboard/useParsedStorage";
 
 export default function DashboardPage() {
   const router = useRouter();
 
-  const [parsedData, setParsedData] = useState<ParsedResponse | null>(null);
-  const [filtered, setFiltered] = useState<ParsedResponse["transactions"]>([]);
+  const [parsedData, setParsedData] = useState<ParsedDataWithId | null>(null);
+  const [filtered, setFiltered] = useState<ParsedData["transactions"]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
-  // Load latest parse
+  const { parsedList } = useParsedStorage();
+  const params = useSearchParams();
+
+  const id = params.get("id");
+  const parsed = parsedList.find((p) => p.id === id);
+
   useEffect(() => {
-    const saved = localStorage.getItem("latestParsed");
-    if (saved) {
-      const data: ParsedResponse = JSON.parse(saved);
-      setParsedData(data);
-      setFiltered(data.transactions);
+    if (!parsed && parsedList.length > 0 && !id) {
+      // if no specific ID, load latest
+      router.replace(`/dashboard?id=${parsedList[parsedList.length - 1].id}`);
     }
-  }, []);
+
+    if (parsed) {
+      setParsedData(parsed ?? null);
+      setFiltered(parsed?.transactions);
+    }
+  }, [parsed, parsedList, id]);
 
   // Apply search + date filters
   useEffect(() => {

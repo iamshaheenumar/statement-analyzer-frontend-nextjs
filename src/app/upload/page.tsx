@@ -10,7 +10,7 @@ import { useParsedStorage } from "@/features/dashboard/useParsedStorage";
 
 export default function UploadPage() {
   const router = useRouter();
-  const { parsedList, addParsed } = useParsedStorage();
+  const { parsedList, addParsed, deleteParsed } = useParsedStorage();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -29,30 +29,48 @@ export default function UploadPage() {
         { headers: { "Content-Type": "multipart/form-data" } }
       );
 
-      addParsed(res.data);
-      localStorage.setItem("latestParsed", JSON.stringify(res.data));
-      router.push("/dashboard");
+      const saved = await addParsed(res.data);
+      router.push(`/dashboard?id=${saved?.id}`);
     } catch (err: any) {
-      console.error(err);
       setError(err.response?.data?.message || "Failed to parse file");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSelectParsed = (parsed: any) => {
-    localStorage.setItem("latestParsed", JSON.stringify(parsed));
-    router.push("/dashboard");
+  const handleSelectParsed = (id: string) => {
+    router.push(`/dashboard?id=${id}`);
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 p-6 flex flex-col items-center">
-      {/* Upload Form */}
-      <UploadForm onSubmit={onSubmit} isLoading={isLoading} error={error} />
+  const handleDelete = (id: string) => deleteParsed(id);
 
-      {/* Recent Statements */}
-      <div className="mt-8">
-        <ParsedList parsedList={parsedList} onSelect={handleSelectParsed} />
+  return (
+    // <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 p-6 flex flex-col items-center">
+    //   {/* Upload Form */}
+    //   <UploadForm onSubmit={onSubmit} isLoading={isLoading} error={error} />
+
+    //   {/* Recent Statements */}
+
+    //   <ParsedList
+    //     parsedList={parsedList}
+    //     onSelect={handleSelectParsed}
+    //     onDelete={handleDelete}
+    //   />
+    // </div>
+
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 px-4 py-12">
+      <div className="max-w-2xl mx-auto space-y-8">
+        {/* Upload Form */}
+        <UploadForm onSubmit={onSubmit} isLoading={isLoading} error={error} />
+
+        {/* Recent Statements - Only shows when there are items */}
+        {parsedList.length > 0 && (
+          <ParsedList
+            parsedList={parsedList}
+            onSelect={handleSelectParsed}
+            onDelete={handleDelete}
+          />
+        )}
       </div>
     </div>
   );

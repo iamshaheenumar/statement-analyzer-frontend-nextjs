@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect } from "react";
-import { ParsedResponse } from "@/features/dashboard/types";
+import React from "react";
+import { ParsedData, ParsedDataWithId } from "@/features/dashboard/types";
 import SummaryCard from "@/features/dashboard/SummaryCard";
 import FilterCard from "@/features/dashboard/FilterCard";
 import TransactionsTable from "@/features/dashboard/TransactionsTable";
@@ -18,9 +18,9 @@ import {
 import { useRouter } from "next/navigation";
 
 type Props = {
-  data: ParsedResponse;
-  filtered: ParsedResponse["transactions"];
-  setData: (v: ParsedResponse | null) => void;
+  data: ParsedDataWithId;
+  filtered: ParsedData["transactions"];
+  setData: (v: ParsedDataWithId | null) => void;
   searchTerm: string;
   setSearchTerm: (v: string) => void;
   dateFrom: string;
@@ -41,7 +41,7 @@ export default function Dashboard({
   setDateTo,
 }: Props) {
   const router = useRouter();
-  const { parsedList, clearAll, loading } = useParsedStorage();
+  const { parsedList, deleteParsed, loading } = useParsedStorage();
 
   const { bank, summary } = data;
 
@@ -59,6 +59,12 @@ export default function Dashboard({
     }
   }
 
+  const handleSelectParsed = (id: string) => {
+    router.push(`/dashboard?id=${id}`);
+  };
+
+  const handleDelete = (id: string) => deleteParsed(id);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
@@ -71,7 +77,7 @@ export default function Dashboard({
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-4">
                   <button
-                    onClick={() => setData(null)}
+                    onClick={() => router.push("/upload")}
                     className="group flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 transition-all hover:scale-110 hover:shadow-md"
                   >
                     <ArrowLeft className="w-5 h-5 transition-transform group-hover:-translate-x-0.5" />
@@ -174,7 +180,11 @@ export default function Dashboard({
         <TransactionsTable transactions={filtered} />
 
         {/* Recent Parsed Statements */}
-        <ParsedList parsedList={parsedList} onSelect={(d: any) => setData(d)} />
+        <ParsedList
+          parsedList={parsedList}
+          onSelect={handleSelectParsed}
+          onDelete={handleDelete}
+        />
       </div>
     </div>
   );

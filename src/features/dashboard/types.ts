@@ -7,7 +7,7 @@ export type Transaction = {
   bank: string;
 };
 
-export type ParsedResponse = {
+export type ParsedData = {
   bank: string;
   summary: {
     record_count: number;
@@ -17,3 +17,5 @@ export type ParsedResponse = {
   };
   transactions: Transaction[];
 };
+
+export type ParsedDataWithId = ParsedData & { id: string };
