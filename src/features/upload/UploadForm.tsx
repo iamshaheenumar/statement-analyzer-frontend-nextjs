@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { toast } from "sonner";
 import { Upload, Lock, FileText, Cloud, Zap, CheckCircle, AlertCircle } from "lucide-react";
 
 type FormValues = {
@@ -45,7 +46,7 @@ export default function UploadForm({ onSubmit, isLoading, error }: Props) {
   const handleServerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file) {
-      alert("Please select a PDF file first");
+      toast.error("Please select a PDF file first");
       return;
     }
     const formData = { file: [file] as any, password };
@@ -54,11 +55,11 @@ export default function UploadForm({ onSubmit, isLoading, error }: Props) {
 
   const handleClientParse = async () => {
     if (!file) {
-      alert("Please select a PDF file first");
+      toast.error("Please select a PDF file first");
       return;
     }
     // Client-side parsing logic would go here
-    alert(`Parsing ${file.name} locally...`);
+    toast.info(`Parsing ${file.name} locally...`);
   };
 
   return (

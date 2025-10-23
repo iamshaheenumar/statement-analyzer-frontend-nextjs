@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { parseISO } from "date-fns";
+import { toast } from "sonner";
 
 type Props = {
   id?: string;
@@ -216,10 +217,10 @@ export default function Dashboard(props: Props) {
                         const msg = data?.error || `Save failed (${res.status})`;
                         throw new Error(msg);
                       }
-                      alert("Saved to cloud successfully!");
+                      toast.success("Saved to cloud successfully!");
                     } catch (err: any) {
                       console.error(err);
-                      alert(err?.message || "Failed to save to cloud");
+                      toast.error(err?.message || "Failed to save to cloud");
                     } finally {
                       setSaving(false);
                     }
