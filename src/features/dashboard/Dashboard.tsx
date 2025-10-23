@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { ParsedData, ParsedDataWithId } from "@/features/dashboard/types";
 import SummaryCard from "@/features/dashboard/SummaryCard";
 import FilterCard from "@/features/dashboard/FilterCard";
@@ -15,42 +15,74 @@ import {
   CloudUpload,
   ArrowLeft,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { parseISO } from "date-fns";
 
-type Props = {
-  data: ParsedDataWithId;
-  filtered: ParsedData["transactions"];
-  setData: (v: ParsedDataWithId | null) => void;
-  searchTerm: string;
-  setSearchTerm: (v: string) => void;
-  dateFrom: string;
-  dateTo: string;
-  setDateFrom: (v: string) => void;
-  setDateTo: (v: string) => void;
-};
-
-export default function Dashboard({
-  data,
-  filtered,
-  setData,
-  searchTerm,
-  setSearchTerm,
-  dateFrom,
-  setDateFrom,
-  dateTo,
-  setDateTo,
-}: Props) {
+export default function Dashboard() {
   const router = useRouter();
   const { parsedList, deleteParsed, loading } = useParsedStorage();
 
-  const { bank, summary } = data;
+  const [parsedData, setParsedData] = useState<ParsedDataWithId | null>(null);
+  const [filtered, setFiltered] = useState<ParsedData["transactions"]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  const params = useSearchParams();
+
+  const id = params.get("id");
+  const parsed = parsedList.find((p) => p.id === id);
+
+  useEffect(() => {
+    if (!parsed && parsedList.length > 0 && !id) {
+      // if no specific ID, load latest
+      router.replace(`/dashboard?id=${parsedList[parsedList.length - 1].id}`);
+    }
+
+    if (parsed) {
+      setParsedData(parsed ?? null);
+      setFiltered(parsed?.transactions);
+    }
+  }, [parsed, parsedList, id]);
+
+  // Apply search + date filters
+  useEffect(() => {
+    if (!parsedData) return;
+
+    const from = dateFrom ? new Date(dateFrom) : null;
+    const to = dateTo ? new Date(dateTo) : null;
+
+    const filteredTxns = parsedData.transactions.filter((t) => {
+      const dateObj = parseISO(t.transaction_date);
+      const matchesText = t.description
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
+
+      const inRange =
+        (!from || (dateObj && dateObj >= from)) &&
+        (!to || (dateObj && dateObj <= to));
+      return matchesText && inRange;
+    });
+
+    setFiltered(filteredTxns);
+  }, [searchTerm, dateFrom, dateTo, parsedData]);
+
+  const { bank, summary } = parsedData || {
+    bank: "",
+    summary: {
+      record_count: 0,
+      total_debit: 0,
+      total_credit: 0,
+      net_change: 0,
+    },
+  };
 
   async function handleSaveToCloud() {
     try {
       await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/save`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify(parsedData),
       });
       alert("✅ Saved to cloud successfully!");
     } catch (err) {
@@ -115,7 +147,7 @@ export default function Dashboard({
                 </button>
 
                 <button
-                  onClick={() => setData(null)}
+                  onClick={() => setParsedData(null)}
                   className="group relative overflow-hidden px-6 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl font-semibold shadow-lg shadow-blue-500/30 transition-all hover:shadow-2xl hover:shadow-blue-500/50 hover:scale-105"
                 >
                   <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
