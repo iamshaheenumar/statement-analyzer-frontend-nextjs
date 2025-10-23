@@ -15,10 +15,14 @@ import {
   CloudUpload,
   ArrowLeft,
 } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { parseISO } from "date-fns";
 
-export default function Dashboard() {
+type Props = {
+  id?: string;
+};
+
+export default function Dashboard(props: Props) {
   const router = useRouter();
   const { parsedList, deleteParsed, loading } = useParsedStorage();
 
@@ -28,9 +32,7 @@ export default function Dashboard() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
-  const params = useSearchParams();
-
-  const id = params.get("id");
+  const id = props?.id;
   const parsed = parsedList.find((p) => p.id === id);
 
   useEffect(() => {
