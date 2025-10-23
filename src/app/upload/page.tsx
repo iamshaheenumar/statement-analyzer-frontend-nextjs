@@ -45,21 +45,19 @@ export default function UploadPage() {
   const handleDelete = (id: string) => deleteParsed(id);
 
   return (
-    // <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 p-6 flex flex-col items-center">
-    //   {/* Upload Form */}
-    //   <UploadForm onSubmit={onSubmit} isLoading={isLoading} error={error} />
-
-    //   {/* Recent Statements */}
-
-    //   <ParsedList
-    //     parsedList={parsedList}
-    //     onSelect={handleSelectParsed}
-    //     onDelete={handleDelete}
-    //   />
-    // </div>
-
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 px-4 py-12">
       <div className="max-w-2xl mx-auto space-y-8">
+        <div className="flex items-center justify-end">
+          <a
+            href="/statements"
+            className="group relative overflow-hidden px-4 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-2xl font-semibold shadow-lg shadow-purple-500/30 transition-all hover:shadow-2xl hover:shadow-purple-500/50 hover:scale-105"
+          >
+            <span className="relative flex items-center justify-center gap-2">
+              {/* iconless for simplicity to keep imports minimal */}
+              Saved Statements
+            </span>
+          </a>
+        </div>
         {/* Upload Form */}
         <UploadForm onSubmit={onSubmit} isLoading={isLoading} error={error} />
 

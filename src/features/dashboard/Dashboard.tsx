@@ -1,12 +1,13 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { ParsedData, ParsedDataWithId } from "@/features/dashboard/types";
+import { ParsedData, ParsedDataWithId, Transaction } from "@/features/dashboard/types";
 import SummaryCard from "@/features/dashboard/SummaryCard";
 import FilterCard from "@/features/dashboard/FilterCard";
 import TransactionsTable from "@/features/dashboard/TransactionsTable";
 import ParsedList from "@/features/dashboard/ParsedList";
 import { useParsedStorage } from "@/features/dashboard/useParsedStorage";
+import ConfirmModal from "@/features/dashboard/ConfirmModal";
 import {
   Wallet,
   TrendingUp,
@@ -14,6 +15,8 @@ import {
   ListOrdered,
   CloudUpload,
   ArrowLeft,
+  Upload,
+  ClipboardList,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { parseISO } from "date-fns";
@@ -24,13 +27,16 @@ type Props = {
 
 export default function Dashboard(props: Props) {
   const router = useRouter();
-  const { parsedList, deleteParsed, loading } = useParsedStorage();
+  const { parsedList, deleteParsed, updateParsed, loading } = useParsedStorage();
 
   const [parsedData, setParsedData] = useState<ParsedDataWithId | null>(null);
   const [filtered, setFiltered] = useState<ParsedData["transactions"]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingTx, setPendingTx] = useState<Transaction | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const id = props?.id;
   const parsed = parsedList.find((p) => p.id === id);
@@ -99,6 +105,61 @@ export default function Dashboard(props: Props) {
 
   const handleDelete = (id: string) => deleteParsed(id);
 
+  const handleRemoveTransaction = (tx: Transaction) => {
+    setPendingTx(tx);
+    setConfirmOpen(true);
+  };
+
+  const confirmRemove = async () => {
+    if (!parsedData || !pendingTx) return;
+    const tx = pendingTx;
+
+    // Try to find by reference first
+    let index = parsedData.transactions.indexOf(tx);
+    if (index === -1) {
+      index = parsedData.transactions.findIndex(
+        (t) =>
+          t.transaction_date === tx.transaction_date &&
+          t.description === tx.description &&
+          t.debit === tx.debit &&
+          t.credit === tx.credit &&
+          t.amount === tx.amount &&
+          t.bank === tx.bank
+      );
+    }
+
+    if (index === -1) {
+      setConfirmOpen(false);
+      setPendingTx(null);
+      return;
+    }
+
+    const nextTransactions = parsedData.transactions.filter((_, i) => i !== index);
+    const totals = nextTransactions.reduce(
+      (acc, t) => {
+        acc.debit += Number(t.debit || 0);
+        acc.credit += Number(t.credit || 0);
+        return acc;
+      },
+      { debit: 0, credit: 0 }
+    );
+    const nextSummary = {
+      record_count: nextTransactions.length,
+      total_debit: totals.debit,
+      total_credit: totals.credit,
+      net_change: totals.credit - totals.debit,
+    };
+
+    const updated = await updateParsed(parsedData.id, {
+      transactions: nextTransactions,
+      summary: nextSummary,
+    });
+    if (updated) setParsedData(updated);
+
+    setConfirmOpen(false);
+    setPendingTx(null);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
@@ -138,36 +199,61 @@ export default function Dashboard(props: Props) {
               {/* Right Side - Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
-                  onClick={handleSaveToCloud}
-                  className="group relative overflow-hidden px-6 py-3.5 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-2xl font-semibold shadow-lg shadow-green-500/30 transition-all hover:shadow-2xl hover:shadow-green-500/50 hover:scale-105"
+                  onClick={async () => {
+                    if (!parsedData || saving) return;
+                    try {
+                      setSaving(true);
+                      const res = await fetch(`/api/save`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(parsedData),
+                      });
+                      let data: any = null;
+                      try {
+                        data = await res.json();
+                      } catch {}
+                      if (!res.ok || (data && data.error)) {
+                        const msg = data?.error || `Save failed (${res.status})`;
+                        throw new Error(msg);
+                      }
+                      alert("Saved to cloud successfully!");
+                    } catch (err: any) {
+                      console.error(err);
+                      alert(err?.message || "Failed to save to cloud");
+                    } finally {
+                      setSaving(false);
+                    }
+                  }}
+                  disabled={saving || !parsedData}
+                  aria-busy={saving}
+                  className="group relative overflow-hidden px-6 py-3.5 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-400 disabled:to-gray-500 text-white rounded-2xl font-semibold shadow-lg shadow-green-500/30 transition-all hover:shadow-2xl hover:shadow-green-500/50 hover:scale-105 disabled:shadow-none disabled:cursor-not-allowed"
                 >
                   <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
                   <span className="relative flex items-center justify-center gap-2">
-                    <CloudUpload className="w-5 h-5 transition-transform group-hover:-translate-y-1 group-hover:scale-110" />
-                    Save to Cloud
+                    <CloudUpload className={`w-5 h-5 transition-transform ${saving ? "animate-bounce" : "group-hover:-translate-y-1 group-hover:scale-110"}`} />
+                    {saving ? "Saving..." : "Save to Cloud"}
                   </span>
                 </button>
 
                 <button
-                  onClick={() => setParsedData(null)}
+                  onClick={() => router.push("/upload")}
                   className="group relative overflow-hidden px-6 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl font-semibold shadow-lg shadow-blue-500/30 transition-all hover:shadow-2xl hover:shadow-blue-500/50 hover:scale-105"
                 >
                   <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
                   <span className="relative flex items-center justify-center gap-2">
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                      />
-                    </svg>
+                    <Upload className="w-5 h-5" />
                     Upload Another
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => router.push("/statements")}
+                  className="group relative overflow-hidden px-6 py-3.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-2xl font-semibold shadow-lg shadow-purple-500/30 transition-all hover:shadow-2xl hover:shadow-purple-500/50 hover:scale-105"
+                >
+                  <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+                  <span className="relative flex items-center justify-center gap-2">
+                    <ClipboardList className="w-5 h-5" />
+                    Saved Statements
                   </span>
                 </button>
               </div>
@@ -211,7 +297,26 @@ export default function Dashboard(props: Props) {
         />
 
         {/* Transactions Table */}
-        <TransactionsTable transactions={filtered} />
+        <TransactionsTable
+          transactions={filtered}
+          onRemove={handleRemoveTransaction}
+          searchTerm={searchTerm}
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+        />
+
+        <ConfirmModal
+          open={confirmOpen}
+          title="Remove Transaction"
+          description="Are you sure you want to remove this transaction from the table? This will update your totals."
+          confirmText="Remove"
+          cancelText="Cancel"
+          onConfirm={confirmRemove}
+          onCancel={() => {
+            setConfirmOpen(false);
+            setPendingTx(null);
+          }}
+        />
 
         {/* Recent Parsed Statements */}
         <ParsedList

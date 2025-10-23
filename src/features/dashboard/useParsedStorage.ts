@@ -41,10 +41,31 @@ export function useParsedStorage() {
     setParsedList(filtered);
   }
 
+  async function updateParsed(
+    id: string,
+    data: Partial<ParsedData>
+  ): Promise<ParsedDataWithId | null> {
+    const existing =
+      (await localforage.getItem<ParsedDataWithId[]>(PARSED_KEY)) || [];
+    const idx = existing.findIndex((item) => item.id === id);
+    if (idx === -1) return null;
+
+    const updatedItem: ParsedDataWithId = {
+      ...existing[idx],
+      ...data,
+    } as ParsedDataWithId;
+
+    const updatedList = [...existing];
+    updatedList[idx] = updatedItem;
+    await localforage.setItem(PARSED_KEY, updatedList);
+    setParsedList(updatedList);
+    return updatedItem;
+  }
+
   async function clearAll() {
     await localforage.removeItem(PARSED_KEY);
     setParsedList([]);
   }
 
-  return { parsedList, addParsed, deleteParsed, clearAll, loading };
+  return { parsedList, addParsed, deleteParsed, updateParsed, clearAll, loading };
 }
