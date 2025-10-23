@@ -28,7 +28,7 @@ export default function SummaryCard({
   };
   return (
     <div
-      className={`group relative bg-white rounded-2xl p-6 shadow-md border-t-4 ${getBorderColor()} transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 overflow-hidden`}
+      className={`group relative bg-white rounded-xl p-4 shadow-sm border-t-4 ${getBorderColor()} transition-all duration-300 hover:shadow-lg hover:-translate-y-1 overflow-hidden`}
     >
       {/* Animated background gradient on hover */}
       <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-gray-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -36,31 +36,31 @@ export default function SummaryCard({
       <div className="relative z-10">
         {/* Icon */}
         <div
-          className={`inline-flex p-3.5 bg-gradient-to-br ${getIconBg()} rounded-2xl mb-4 shadow-sm group-hover:scale-110 group-hover:rotate-3 transition-all duration-300`}
+          className={`inline-flex p-2.5 bg-gradient-to-br ${getIconBg()} rounded-xl mb-3 shadow-sm group-hover:scale-105 group-hover:rotate-2 transition-all duration-300`}
         >
           {icon}
         </div>
 
         {/* Title */}
-        <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
           {title}
         </p>
 
         {/* Value */}
-        <p className={`text-3xl font-bold ${getValueColor()} tracking-tight`}>
+        <p className={`text-2xl sm:text-3xl font-bold ${getValueColor()} tracking-tight`}>
           {typeof value === "number" ? value.toLocaleString() : value}
         </p>
       </div>
 
       {/* Decorative corner accent */}
       <div
-        className={`absolute -right-8 -bottom-8 w-24 h-24 rounded-full opacity-10 ${
+        className={`absolute -right-6 -bottom-6 w-16 h-16 sm:w-20 sm:h-20 rounded-full opacity-10 ${
           highlight === "red"
             ? "bg-red-500"
             : highlight === "green"
             ? "bg-green-500"
             : "bg-blue-500"
-        } group-hover:scale-150 transition-transform duration-500`}
+        } group-hover:scale-125 transition-transform duration-500`}
       ></div>
     </div>
   );

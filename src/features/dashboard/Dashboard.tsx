@@ -1,7 +1,11 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { ParsedData, ParsedDataWithId, Transaction } from "@/features/dashboard/types";
+import {
+  ParsedData,
+  ParsedDataWithId,
+  Transaction,
+} from "@/features/dashboard/types";
 import SummaryCard from "@/features/dashboard/SummaryCard";
 import FilterCard from "@/features/dashboard/FilterCard";
 import TransactionsTable from "@/features/dashboard/TransactionsTable";
@@ -28,7 +32,8 @@ type Props = {
 
 export default function Dashboard(props: Props) {
   const router = useRouter();
-  const { parsedList, deleteParsed, updateParsed, loading } = useParsedStorage();
+  const { parsedList, deleteParsed, updateParsed, loading } =
+    useParsedStorage();
 
   const [parsedData, setParsedData] = useState<ParsedDataWithId | null>(null);
   const [filtered, setFiltered] = useState<ParsedData["transactions"]>([]);
@@ -86,20 +91,6 @@ export default function Dashboard(props: Props) {
     },
   };
 
-  async function handleSaveToCloud() {
-    try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/save`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(parsedData),
-      });
-      alert("✅ Saved to cloud successfully!");
-    } catch (err) {
-      console.error(err);
-      alert("❌ Failed to save to cloud");
-    }
-  }
-
   const handleSelectParsed = (id: string) => {
     router.push(`/dashboard?id=${id}`);
   };
@@ -135,7 +126,9 @@ export default function Dashboard(props: Props) {
       return;
     }
 
-    const nextTransactions = parsedData.transactions.filter((_, i) => i !== index);
+    const nextTransactions = parsedData.transactions.filter(
+      (_, i) => i !== index
+    );
     const totals = nextTransactions.reduce(
       (acc, t) => {
         acc.debit += Number(t.debit || 0);
@@ -161,6 +154,32 @@ export default function Dashboard(props: Props) {
     setPendingTx(null);
   };
 
+  const handleSaveToCloud = async () => {
+    if (!parsedData || saving) return;
+    try {
+      setSaving(true);
+      const res = await fetch(`/api/save`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(parsedData),
+      });
+      let data: any = null;
+      try {
+        data = await res.json();
+      } catch {}
+      if (!res.ok || (data && data.error)) {
+        const msg = data?.error || `Save failed (${res.status})`;
+        throw new Error(msg);
+      }
+      toast.success("Saved to cloud successfully!");
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.message || "Failed to save to cloud");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
@@ -171,7 +190,7 @@ export default function Dashboard(props: Props) {
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
               {/* Left Side - Title Section */}
               <div className="flex-1">
-                <div className="flex items-center gap-3 mb-4">
+                <div className="flex items-center gap-2 mb-3">
                   <button
                     onClick={() => router.push("/upload")}
                     className="group flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 transition-all hover:scale-110 hover:shadow-md"
@@ -179,59 +198,42 @@ export default function Dashboard(props: Props) {
                     <ArrowLeft className="w-5 h-5 transition-transform group-hover:-translate-x-0.5" />
                   </button>
 
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
-                    <Wallet className="w-6 h-6 text-white" />
+                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+                    <Wallet className="w-5 h-5 text-white" />
                   </div>
                 </div>
 
-                <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-gray-900 via-blue-900 to-purple-900 mb-2 leading-tight">
+                <h1 className="text-2xl sm:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-gray-900 via-blue-900 to-purple-900 mb-2 leading-tight">
                   {bank}
                 </h1>
-                <div className="flex items-center gap-3">
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-700">
                     Statement Dashboard
                   </span>
-                  <span className="text-sm text-gray-500">
+                  <span className="text-xs sm:text-sm text-gray-500">
                     {summary.record_count} transactions
                   </span>
                 </div>
               </div>
 
               {/* Right Side - Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-3">
+              {/* Desktop and up: full buttons with labels */}
+              <div className="hidden md:flex flex-col md:flex-row gap-3">
                 <button
-                  onClick={async () => {
-                    if (!parsedData || saving) return;
-                    try {
-                      setSaving(true);
-                      const res = await fetch(`/api/save`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(parsedData),
-                      });
-                      let data: any = null;
-                      try {
-                        data = await res.json();
-                      } catch {}
-                      if (!res.ok || (data && data.error)) {
-                        const msg = data?.error || `Save failed (${res.status})`;
-                        throw new Error(msg);
-                      }
-                      toast.success("Saved to cloud successfully!");
-                    } catch (err: any) {
-                      console.error(err);
-                      toast.error(err?.message || "Failed to save to cloud");
-                    } finally {
-                      setSaving(false);
-                    }
-                  }}
+                  onClick={handleSaveToCloud}
                   disabled={saving || !parsedData}
                   aria-busy={saving}
                   className="group relative overflow-hidden px-6 py-3.5 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-400 disabled:to-gray-500 text-white rounded-2xl font-semibold shadow-lg shadow-green-500/30 transition-all hover:shadow-2xl hover:shadow-green-500/50 hover:scale-105 disabled:shadow-none disabled:cursor-not-allowed"
                 >
                   <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
                   <span className="relative flex items-center justify-center gap-2">
-                    <CloudUpload className={`w-5 h-5 transition-transform ${saving ? "animate-bounce" : "group-hover:-translate-y-1 group-hover:scale-110"}`} />
+                    <CloudUpload
+                      className={`w-5 h-5 transition-transform ${
+                        saving
+                          ? "animate-bounce"
+                          : "group-hover:-translate-y-1 group-hover:scale-110"
+                      }`}
+                    />
                     {saving ? "Saving..." : "Save to Cloud"}
                   </span>
                 </button>
@@ -258,12 +260,50 @@ export default function Dashboard(props: Props) {
                   </span>
                 </button>
               </div>
+
+              {/* Mobile: compact icon-only buttons */}
+              <div className="flex md:hidden items-center gap-2 sm:gap-3">
+                <button
+                  onClick={handleSaveToCloud}
+                  disabled={saving || !parsedData}
+                  aria-busy={saving}
+                  title="Save to Cloud"
+                  className="group relative overflow-hidden w-10 h-10 sm:w-11 sm:h-11 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-400 disabled:to-gray-500 text-white rounded-full shadow-lg shadow-green-500/30 transition-all hover:shadow-2xl hover:shadow-green-500/50 hover:scale-105 disabled:shadow-none disabled:cursor-not-allowed flex items-center justify-center"
+                >
+                  <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 rounded-full"></div>
+                  <CloudUpload
+                    className={`w-5 h-5 relative ${
+                      saving
+                        ? "animate-bounce"
+                        : "group-hover:-translate-y-0.5 group-hover:scale-110"
+                    }`}
+                  />
+                </button>
+
+                <button
+                  onClick={() => router.push("/upload")}
+                  title="Upload Another"
+                  className="group relative overflow-hidden w-10 h-10 sm:w-11 sm:h-11 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-full shadow-lg shadow-blue-500/30 transition-all hover:shadow-2xl hover:shadow-blue-500/50 hover:scale-105 flex items-center justify-center"
+                >
+                  <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 rounded-full"></div>
+                  <Upload className="w-5 h-5 relative" />
+                </button>
+
+                <button
+                  onClick={() => router.push("/statements")}
+                  title="Saved Statements"
+                  className="group relative overflow-hidden w-10 h-10 sm:w-11 sm:h-11 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-full shadow-lg shadow-purple-500/30 transition-all hover:shadow-2xl hover:shadow-purple-500/50 hover:scale-105 flex items-center justify-center"
+                >
+                  <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 rounded-full"></div>
+                  <ClipboardList className="w-5 h-5 relative" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
           <SummaryCard
             title="Total Transactions"
             value={summary.record_count}
