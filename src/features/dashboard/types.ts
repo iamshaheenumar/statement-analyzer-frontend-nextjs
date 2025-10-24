@@ -5,10 +5,14 @@ export type Transaction = {
   credit: number;
   amount: number;
   bank: string;
+  card_type: string;
 };
 
 export type ParsedData = {
   bank: string;
+  from_date?: string | null;
+  to_date?: string | null;
+  card_type?: string | null;
   summary: {
     record_count: number;
     total_debit: number;

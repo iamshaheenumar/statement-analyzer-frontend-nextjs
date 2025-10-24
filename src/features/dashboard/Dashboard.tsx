@@ -50,7 +50,7 @@ export default function Dashboard(props: Props) {
   useEffect(() => {
     if (!parsed && parsedList.length > 0 && !id) {
       // if no specific ID, load latest
-      router.replace(`/dashboard?id=${parsedList[parsedList.length - 1].id}`);
+      router.replace(`/view-parsed?id=${parsedList[parsedList.length - 1].id}`);
     }
 
     if (parsed) {
@@ -92,7 +92,7 @@ export default function Dashboard(props: Props) {
   };
 
   const handleSelectParsed = (id: string) => {
-    router.push(`/dashboard?id=${id}`);
+    router.push(`/view-parsed?id=${id}`);
   };
 
   const handleDelete = (id: string) => deleteParsed(id);

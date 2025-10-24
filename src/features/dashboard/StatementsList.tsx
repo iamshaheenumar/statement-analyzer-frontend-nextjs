@@ -166,7 +166,7 @@ export default function StatementsList({ items, onDelete }: Props) {
               <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-orange-500/5 to-transparent rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500"></div>
 
               <a
-                href={`/dashboard?id=${item.id}`}
+                href={`/view-parsed?id=${item.id}`}
                 className="relative block p-5"
               >
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
