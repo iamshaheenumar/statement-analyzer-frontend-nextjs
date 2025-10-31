@@ -60,26 +60,26 @@ export default function Dashboard(props: Props) {
   }, [parsed, parsedList, id]);
 
   // Apply search + date filters
-  useEffect(() => {
-    if (!parsedData) return;
+  // useEffect(() => {
+  //   if (!parsedData) return;
 
-    const from = dateFrom ? new Date(dateFrom) : null;
-    const to = dateTo ? new Date(dateTo) : null;
+  //   const from = dateFrom ? new Date(dateFrom) : null;
+  //   const to = dateTo ? new Date(dateTo) : null;
 
-    const filteredTxns = parsedData.transactions.filter((t) => {
-      const dateObj = parseISO(t.transaction_date);
-      const matchesText = t.description
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
+  //   const filteredTxns = parsedData.transactions.filter((t) => {
+  //     const dateObj = parseISO(t.transaction_date);
+  //     const matchesText = t.description
+  //       .toLowerCase()
+  //       .includes(searchTerm.toLowerCase());
 
-      const inRange =
-        (!from || (dateObj && dateObj >= from)) &&
-        (!to || (dateObj && dateObj <= to));
-      return matchesText && inRange;
-    });
+  //     const inRange =
+  //       (!from || (dateObj && dateObj >= from)) &&
+  //       (!to || (dateObj && dateObj <= to));
+  //     return matchesText && inRange;
+  //   });
 
-    setFiltered(filteredTxns);
-  }, [searchTerm, dateFrom, dateTo, parsedData]);
+  //   setFiltered(filteredTxns);
+  // }, [searchTerm, dateFrom, dateTo, parsedData]);
 
   const { bank, summary } = parsedData || {
     bank: "",
