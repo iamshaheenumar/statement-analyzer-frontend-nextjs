@@ -178,14 +178,14 @@ async function getData(month?: string, year?: string) {
 export default async function FinanceDashboard({
   searchParams,
 }: {
-  searchParams?: { month?: string; year?: string };
+  searchParams?: Promise<{ month?: string; year?: string }>;
 }) {
   const currentDate = new Date();
   const currentMonth = currentDate.getMonth() + 1;
   const currentYear = currentDate.getFullYear();
 
   // Await searchParams before destructuring
-  const params = await Promise.resolve(searchParams);
+  const params = await searchParams;
   const month = params?.month;
   const year = params?.year;
 
