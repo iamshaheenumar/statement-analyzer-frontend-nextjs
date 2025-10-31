@@ -114,8 +114,8 @@ export default function ViewParsed({ id }: Props) {
         <div className="mb-4">
           <ParsedHeader
             bank={bank}
-            fromDate={parsedData?.from_date}
-            toDate={parsedData?.to_date}
+            fromDate={parsedData?.from_date?.toString()}
+            toDate={parsedData?.to_date?.toString()}
             cardType={parsedData?.card_type}
             parsedData={parsedData}
             onBack={() => router.back()}
