@@ -4,10 +4,11 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useParsedStorage } from "@/features/dashboard/useParsedStorage";
 import type { ParsedDataWithId, Transaction } from "@/features/dashboard/types";
-import TransactionsTable from "@/features/dashboard/TransactionsTable";
+import TransactionsTable from "./components/TransactionsTable";
 import SimpleSearch from "./components/SimpleSearch";
 import ParsedHeader from "./components/ParsedHeader";
 import ConfirmModal from "@/features/dashboard/ConfirmModal";
+import SaveToCloudButton from "./components/SaveToCloudButton";
 
 type Props = {
   id?: string;
@@ -15,11 +16,13 @@ type Props = {
 
 export default function ViewParsed({ id }: Props) {
   const router = useRouter();
-  const { parsedList, loading, updateParsed } = useParsedStorage();
+  const { parsedList, loading, updateParsed, deleteParsed } =
+    useParsedStorage();
   const [parsedData, setParsedData] = useState<ParsedDataWithId | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingTx, setPendingTx] = useState<Transaction | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const parsed = useMemo(
     () => parsedList.find((p) => p.id === id),
@@ -107,14 +110,17 @@ export default function ViewParsed({ id }: Props) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 py-6 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
-        {/* Compact header to keep transactions in initial viewport */}
+        {/* Header */}
         <div className="mb-4">
           <ParsedHeader
             bank={bank}
             fromDate={parsedData?.from_date}
             toDate={parsedData?.to_date}
             cardType={parsedData?.card_type}
+            parsedData={parsedData}
             onBack={() => router.back()}
+            saving={saving}
+            onSavingChange={setSaving}
           />
         </div>
 
@@ -129,6 +135,17 @@ export default function ViewParsed({ id }: Props) {
           searchTerm={searchTerm}
           onRemove={handleRemoveTransaction}
         />
+
+        {parsedData && (
+          <div className="mt-6 flex justify-end">
+            <SaveToCloudButton
+              parsedData={parsedData}
+              saving={saving}
+              onSavingChange={setSaving}
+              className="w-full sm:w-auto"
+            />
+          </div>
+        )}
 
         <ConfirmModal
           open={confirmOpen}
@@ -146,4 +163,3 @@ export default function ViewParsed({ id }: Props) {
     </div>
   );
 }
-

@@ -1,24 +1,37 @@
-export type Transaction = {
-  transaction_date: string;
-  description: string;
-  debit: number;
-  credit: number;
-  amount: number;
-  bank: string;
-  card_type: string;
+export type BaseTransaction = {
+  transaction_date: string | Date | null;
+  description: string | null;
+  debit: number | null;
+  credit: number | null;
+  amount: number | null;
+  bank: string | null;
 };
 
-export type ParsedData = {
+export type Transaction = BaseTransaction;
+export type TransactionWithId = BaseTransaction & { id: string };
+
+export type StatementSummary = {
+  record_count: number;
+  total_debit: number;
+  total_credit: number;
+  net_change: number;
+};
+
+export type BaseStatement = {
   bank: string;
-  from_date?: string | null;
-  to_date?: string | null;
   card_type?: string | null;
-  summary: {
-    record_count: number;
-    total_debit: number;
-    total_credit: number;
-    net_change: number;
-  };
+  from_date: Date | null;
+  to_date: Date | null;
+};
+
+export type Statement = BaseStatement & {
+  id: string;
+  created_at: Date;
+  summary?: StatementSummary;
+};
+
+export type ParsedData = BaseStatement & {
+  summary: StatementSummary;
   transactions: Transaction[];
 };
 

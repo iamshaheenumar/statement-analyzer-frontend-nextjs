@@ -1,6 +1,16 @@
 import React, { useState } from "react";
 import { toast } from "sonner";
-import { Upload, Lock, FileText, Cloud, Zap, CheckCircle, AlertCircle } from "lucide-react";
+import {
+  Upload,
+  Lock,
+  FileText,
+  Cloud,
+  Zap,
+  CheckCircle,
+  AlertCircle,
+  Loader2,
+} from "lucide-react";
+import { checkIsPasswordProtected } from "@/services/parsePDF";
 
 type FormValues = {
   file: FileList;
@@ -17,6 +27,7 @@ export default function UploadForm({ onSubmit, isLoading, error }: Props) {
   const [file, setFile] = useState<File | null>(null);
   const [password, setPassword] = useState("");
   const [isDragging, setIsDragging] = useState(false);
+  const [isPasswordProtected, setIsPasswordProtected] = useState(false);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -27,19 +38,35 @@ export default function UploadForm({ onSubmit, isLoading, error }: Props) {
     setIsDragging(false);
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
     const droppedFile = e.dataTransfer.files[0];
     if (droppedFile?.type === "application/pdf") {
       setFile(droppedFile);
+      setPassword("");
+      setIsPasswordProtected(false);
+      await checkFilePassword(droppedFile);
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const checkFilePassword = async (file: File) => {
+    try {
+      const needsPassword = await checkIsPasswordProtected(file);
+      setIsPasswordProtected(needsPassword);
+    } catch (err) {
+      toast.error("Error checking PDF password");
+      console.error("Error checking password:", err);
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
       setFile(selectedFile);
+      setPassword("");
+      setIsPasswordProtected(false);
+      await checkFilePassword(selectedFile);
     }
   };
 
@@ -47,6 +74,10 @@ export default function UploadForm({ onSubmit, isLoading, error }: Props) {
     e.preventDefault();
     if (!file) {
       toast.error("Please select a PDF file first");
+      return;
+    }
+    if (isPasswordProtected && !password) {
+      toast.error("This PDF requires a password");
       return;
     }
     const formData = { file: [file] as any, password };
@@ -158,27 +189,30 @@ export default function UploadForm({ onSubmit, isLoading, error }: Props) {
             </div>
 
             {/* Password Input */}
-            <div>
-              <label className="block text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">
-                Password (Optional)
-              </label>
-              <div className="relative group">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl opacity-0 group-hover:opacity-20 blur transition-opacity duration-300"></div>
-                <div className="relative flex items-center bg-gradient-to-br from-gray-50 to-white border-2 border-gray-200 rounded-2xl px-4 py-3.5 transition-all duration-300 focus-within:border-purple-500 focus-within:shadow-lg focus-within:shadow-purple-500/20">
-                  <Lock className="w-5 h-5 text-gray-400 mr-3" />
-                  <input
-                    type="password"
-                    placeholder="Enter PDF password if protected"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="flex-1 outline-none bg-transparent text-gray-800 placeholder-gray-400 text-sm font-medium"
-                  />
+            {file && isPasswordProtected && (
+              <div>
+                <label className="block text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">
+                  Password Required <span className="text-red-500">*</span>
+                </label>
+                <div className="relative group">
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl opacity-0 group-hover:opacity-20 blur transition-opacity duration-300"></div>
+                  <div className="relative flex items-center bg-gradient-to-br from-gray-50 to-white border-2 border-gray-200 rounded-2xl px-4 py-3.5 transition-all duration-300 focus-within:border-purple-500 focus-within:shadow-lg focus-within:shadow-purple-500/20">
+                    <Lock className="w-5 h-5 text-gray-400 mr-3" />
+                    <input
+                      type="password"
+                      placeholder="Enter PDF password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="flex-1 outline-none bg-transparent text-gray-800 placeholder-gray-400 text-sm font-medium"
+                      required
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Action Buttons */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+            <div className="grid grid-cols-1 gap-4 pt-2">
               {/* Server Parse Button */}
               <button
                 type="submit"
@@ -187,13 +221,19 @@ export default function UploadForm({ onSubmit, isLoading, error }: Props) {
               >
                 <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
                 <span className="relative flex items-center justify-center gap-2">
-                  <Cloud className="w-5 h-5" />
-                  {isLoading ? "Parsing..." : "Parse on Server"}
+                  <Cloud
+                    className={`w-5 h-5 ${
+                      isLoading
+                        ? "animate-bounce"
+                        : "group-hover:-translate-y-1 group-hover:scale-110"
+                    }`}
+                  />
+                  {isLoading ? "Parsing data..." : "Get Data"}
                 </span>
               </button>
 
               {/* Client Parse Button */}
-              <button
+              {/* <button
                 type="button"
                 onClick={handleClientParse}
                 disabled={!file}
@@ -204,7 +244,7 @@ export default function UploadForm({ onSubmit, isLoading, error }: Props) {
                   <Zap className="w-5 h-5" />
                   Parse Locally
                 </span>
-              </button>
+              </button> */}
             </div>
           </form>
 

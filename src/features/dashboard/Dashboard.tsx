@@ -155,29 +155,29 @@ export default function Dashboard(props: Props) {
   };
 
   const handleSaveToCloud = async () => {
-    if (!parsedData || saving) return;
-    try {
-      setSaving(true);
-      const res = await fetch(`/api/save`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(parsedData),
-      });
-      let data: any = null;
-      try {
-        data = await res.json();
-      } catch {}
-      if (!res.ok || (data && data.error)) {
-        const msg = data?.error || `Save failed (${res.status})`;
-        throw new Error(msg);
-      }
-      toast.success("Saved to cloud successfully!");
-    } catch (err: any) {
-      console.error(err);
-      toast.error(err?.message || "Failed to save to cloud");
-    } finally {
-      setSaving(false);
-    }
+    // if (!parsedData || saving) return;
+    // try {
+    //   setSaving(true);
+    //   const res = await fetch(`/api/save`, {
+    //     method: "POST",
+    //     headers: { "Content-Type": "application/json" },
+    //     body: JSON.stringify(parsedData),
+    //   });
+    //   let data: any = null;
+    //   try {
+    //     data = await res.json();
+    //   } catch {}
+    //   if (!res.ok || (data && data.error)) {
+    //     const msg = data?.error || `Save failed (${res.status})`;
+    //     throw new Error(msg);
+    //   }
+    //   toast.success("Saved to cloud successfully!");
+    // } catch (err: any) {
+    //   console.error(err);
+    //   toast.error(err?.message || "Failed to save to cloud");
+    // } finally {
+    //   setSaving(false);
+    // }
   };
 
   return (
@@ -341,7 +341,6 @@ export default function Dashboard(props: Props) {
         <TransactionsTable
           transactions={filtered}
           onRemove={handleRemoveTransaction}
-          searchTerm={searchTerm}
           dateFrom={dateFrom}
           dateTo={dateTo}
         />

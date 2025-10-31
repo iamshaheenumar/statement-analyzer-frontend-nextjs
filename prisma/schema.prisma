@@ -8,21 +8,24 @@ datasource db {
 }
 
 model Statement {
-  id           String        @id
-  bank         String
-  recordCount  Int
-  totalDebit   Decimal
-  totalCredit  Decimal
-  netChange    Decimal
-  createdAt    DateTime      @default(now())
+  id          String    @id
+  bank        String
+  from_date   DateTime?
+  to_date     DateTime?
+  card_type   String?
+  recordCount Int
+  totalDebit  Decimal
+  totalCredit Decimal
+  netChange   Decimal
+  createdAt   DateTime  @default(now())
 
   transactions Transaction[]
 }
 
 model Transaction {
-  id              Int       @id @default(autoincrement())
-  statementId     String
-  statement       Statement  @relation(fields: [statementId], references: [id], onDelete: Cascade)
+  id          Int       @id @default(autoincrement())
+  statementId String
+  statement   Statement @relation(fields: [statementId], references: [id], onDelete: Cascade)
 
   transactionDate DateTime?
   description     String?
@@ -31,4 +34,3 @@ model Transaction {
   amount          Decimal?
   bank            String?
 }
-

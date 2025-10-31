@@ -1,6 +1,16 @@
 import * as pdfjsLib from "pdfjs-dist";
 pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
+export async function checkIsPasswordProtected(file: File): Promise<boolean> {
+  try {
+    const buffer = await file.arrayBuffer();
+    await pdfjsLib.getDocument({ data: buffer }).promise;
+    return false;
+  } catch (error: any) {
+    return error.message?.toLowerCase().includes("password");
+  }
+}
+
 export async function parseLocalPdf(file: File, password?: string) {
   const buffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: buffer, password }).promise;

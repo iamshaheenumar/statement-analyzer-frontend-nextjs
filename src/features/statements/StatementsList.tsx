@@ -5,17 +5,20 @@ import {
   CircleDollarSign,
   ChevronRight,
   Upload,
-  AlertCircle,
-  Trash2,
   Calendar,
   TrendingUp,
 } from "lucide-react";
-import { useState } from "react";
+import { DeleteButton } from "./DeleteStatementButton";
+import { formatDate } from "@/utils/date";
 
 type StatementItem = {
   id: string;
   bank: string;
   created_at: string | Date;
+
+  card_type?: string | null;
+  from_date: Date | null;
+  to_date: Date | null;
   summary: {
     record_count: number;
     total_debit: number;
@@ -26,23 +29,9 @@ type StatementItem = {
 
 type Props = {
   items: StatementItem[];
-  onDelete?: (id: string) => void;
 };
 
-export default function StatementsList({ items, onDelete }: Props) {
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-
-  const handleDelete = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    if (deleteConfirm === id) {
-      onDelete?.(id);
-      setDeleteConfirm(null);
-    } else {
-      setDeleteConfirm(id);
-      setTimeout(() => setDeleteConfirm(null), 3000);
-    }
-  };
-
+export default function StatementsList({ items }: Props) {
   if (!items || items.length === 0) {
     return (
       <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-lg border border-white/20 p-8">
@@ -166,7 +155,7 @@ export default function StatementsList({ items, onDelete }: Props) {
               <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-orange-500/5 to-transparent rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500"></div>
 
               <a
-                href={`/view-parsed?id=${item.id}`}
+                href={`/view-saved?id=${item.id}`}
                 className="relative block p-5"
               >
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -195,13 +184,8 @@ export default function StatementsList({ items, onDelete }: Props) {
                         <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
                           <Calendar className="w-3.5 h-3.5" />
                           <span>
-                            {new Date(item.created_at).toLocaleString("en-US", {
-                              month: "short",
-                              day: "numeric",
-                              year: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
+                            {formatDate(item.from_date)} -{" "}
+                            {formatDate(item.to_date)}
                           </span>
                         </div>
                       </div>
@@ -268,36 +252,10 @@ export default function StatementsList({ items, onDelete }: Props) {
               </a>
 
               {/* Delete Button */}
-              {onDelete && (
-                <div className="absolute top-3 right-3 z-10">
-                  <button
-                    onClick={(e) => handleDelete(e, item.id)}
-                    className={`group/delete p-2 rounded-xl transition-all duration-300 ${
-                      deleteConfirm === item.id
-                        ? "bg-red-500 hover:bg-red-600 shadow-lg shadow-red-500/30"
-                        : "bg-white/80 hover:bg-red-50 border border-gray-200 hover:border-red-300"
-                    }`}
-                    title={
-                      deleteConfirm === item.id
-                        ? "Click again to confirm"
-                        : "Delete statement"
-                    }
-                  >
-                    {deleteConfirm === item.id ? (
-                      <AlertCircle className="w-4 h-4 text-white" />
-                    ) : (
-                      <Trash2 className="w-4 h-4 text-gray-400 group-hover/delete:text-red-500 transition-colors" />
-                    )}
-                  </button>
-                </div>
-              )}
 
-              {/* Delete Confirmation Tooltip */}
-              {deleteConfirm === item.id && (
-                <div className="absolute top-14 right-3 bg-red-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shadow-lg z-20 whitespace-nowrap animate-pulse">
-                  Click again to confirm
-                </div>
-              )}
+              <div className="absolute top-3 right-3 z-10">
+                <DeleteButton id={item.id} />
+              </div>
             </div>
           ))}
         </div>

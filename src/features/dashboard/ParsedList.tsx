@@ -1,4 +1,12 @@
-import { AlertCircle, Trash2, ClipboardList, FileText, CircleDollarSign, ChevronRight, CreditCard } from "lucide-react";
+import {
+  AlertCircle,
+  Trash2,
+  ClipboardList,
+  FileText,
+  CircleDollarSign,
+  ChevronRight,
+  CreditCard,
+} from "lucide-react";
 import { ParsedData, ParsedDataWithId } from "./types";
 import { useState } from "react";
 
@@ -30,7 +38,7 @@ const ParsedList = ({ parsedList, onSelect, onDelete }: Props) => {
             <ClipboardList className="w-5 h-5 text-white" />
           </div>
           <h2 className="text-lg sm:text-xl font-bold text-gray-900">
-            Recent Parsed Statements
+            Unsaved Statements
           </h2>
         </div>
 
@@ -58,7 +66,7 @@ const ParsedList = ({ parsedList, onSelect, onDelete }: Props) => {
           </div>
           <div>
             <h2 className="text-lg sm:text-xl font-bold text-gray-900">
-              Recent Parsed Statements
+              Unsaved Statements
             </h2>
             <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
               {parsedList.length} statement{parsedList.length !== 1 ? "s" : ""}{" "}
@@ -69,7 +77,7 @@ const ParsedList = ({ parsedList, onSelect, onDelete }: Props) => {
 
         <div className="flex items-center gap-2 px-3 py-1.5 bg-orange-50 rounded-full self-start sm:self-auto">
           <div className="w-2 h-2 rounded-full bg-orange-500"></div>
-          <span className="text-xs font-semibold text-orange-700">Cached</span>
+          <span className="text-xs font-semibold text-orange-700">Unsaved</span>
         </div>
       </div>
 
