@@ -7,7 +7,7 @@ import {
   ChevronRight,
   CreditCard,
 } from "lucide-react";
-import { ParsedData, ParsedDataWithId } from "./types";
+import { ParsedDataWithId } from "./types";
 import { useState } from "react";
 
 type Props = {

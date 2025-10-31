@@ -1,3 +1,4 @@
+"use client";
 import React, { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -10,7 +11,7 @@ import {
   AlertCircle,
   Loader2,
 } from "lucide-react";
-import { checkIsPasswordProtected } from "@/services/parsePDF";
+export const dynamic = "force-dynamic";
 
 type FormValues = {
   file: FileList;
@@ -52,6 +53,7 @@ export default function UploadForm({ onSubmit, isLoading, error }: Props) {
 
   const checkFilePassword = async (file: File) => {
     try {
+      const { checkIsPasswordProtected } = await import("@/services/parsePDF");
       const needsPassword = await checkIsPasswordProtected(file);
       setIsPasswordProtected(needsPassword);
     } catch (err) {
