@@ -23,8 +23,6 @@ import {
   ClipboardList,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { parseISO } from "date-fns";
-import { toast } from "sonner";
 
 type Props = {
   id?: string;
@@ -338,12 +336,12 @@ export default function Dashboard(props: Props) {
         />
 
         {/* Transactions Table */}
-        <TransactionsTable
+        {/* <TransactionsTable
           transactions={filtered}
           onRemove={handleRemoveTransaction}
           dateFrom={dateFrom}
           dateTo={dateTo}
-        />
+        /> */}
 
         <ConfirmModal
           open={confirmOpen}
