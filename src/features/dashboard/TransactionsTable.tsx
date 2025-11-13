@@ -2,19 +2,14 @@
 
 import React, { useState, useMemo } from "react";
 import { Search, Banknote } from "lucide-react";
-
-type Txn = any;
+import { DashboardTransaction } from "@/app/dashboard/page";
 
 export default function TransactionsTable({
   transactions,
   onRemove,
-  dateFrom,
-  dateTo,
 }: {
-  transactions: Txn[];
-  onRemove?: (tx: any) => void;
-  dateFrom?: string;
-  dateTo?: string;
+  transactions: DashboardTransaction[];
+  onRemove?: (tx: DashboardTransaction) => void;
 }) {
   const [searchTerm, setSearchTerm] = useState("");
 

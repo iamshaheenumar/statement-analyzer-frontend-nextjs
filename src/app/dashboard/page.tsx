@@ -111,6 +111,21 @@ const expenseCategoryColors = {
   Others: "#6B7280",
 } as const;
 
+type AvailableMonth = {
+  month: string;
+  year: string;
+};
+
+type TransactionType = "Credit" | "Debit" | "Neutral";
+
+export type DashboardTransaction = {
+  date: string;
+  description: string;
+  category: string;
+  amount: number;
+  type: TransactionType;
+};
+
 async function getData(month?: string, year?: string) {
   const currentDate = new Date();
   const selectedYear = year ? parseInt(year) : currentDate.getFullYear();
@@ -118,6 +133,36 @@ async function getData(month?: string, year?: string) {
 
   const startDate = new Date(selectedYear, selectedMonth - 1, 1);
   const endDate = new Date(selectedYear, selectedMonth, 0);
+
+  const availableMonthRecords = await prisma.transaction.findMany({
+    where: {
+      transactionDate: {
+        not: null,
+      },
+    },
+    select: {
+      transactionDate: true,
+    },
+    orderBy: {
+      transactionDate: "desc",
+    },
+    distinct: ["transactionDate"],
+  });
+
+  const monthYearSeen = new Set<string>();
+  const availableMonths = availableMonthRecords.reduce<AvailableMonth[]>(
+    (acc, record) => {
+      if (!record.transactionDate) return acc;
+      const monthValue = (record.transactionDate.getMonth() + 1).toString();
+      const yearValue = record.transactionDate.getFullYear().toString();
+      const key = `${monthValue}-${yearValue}`;
+      if (monthYearSeen.has(key)) return acc;
+      monthYearSeen.add(key);
+      acc.push({ month: monthValue, year: yearValue });
+      return acc;
+    },
+    []
+  );
 
   const transactions = await prisma.transaction.findMany({
     where: {
@@ -133,11 +178,13 @@ async function getData(month?: string, year?: string) {
 
   const monthlyData = transactions.reduce(
     (acc, tx) => {
-      const amount = tx.amount ? Number(tx.amount) : 0;
-      if (amount > 0) {
-        acc.income += amount;
-      } else {
-        acc.expenses += Math.abs(amount);
+      const credit = tx.credit ? Number(tx.credit) : 0;
+      const debit = tx.debit ? Number(tx.debit) : 0;
+      if (credit > 0) {
+        acc.income += credit;
+      }
+      if (debit > 0) {
+        acc.expenses += debit;
       }
       return acc;
     },
@@ -147,10 +194,10 @@ async function getData(month?: string, year?: string) {
 
   const expenseCategories = Array.from(
     transactions
-      .filter((tx) => tx.amount && Number(tx.amount) < 0)
+      .filter((tx) => tx.debit && Number(tx.debit) > 0)
       .reduce((acc, tx) => {
         const category = tx.description?.split(" ")[0] || "Others";
-        const amount = Math.abs(Number(tx.amount || 0));
+        const amount = Number(tx.debit || 0);
         acc.set(category, (acc.get(category) || 0) + amount);
         return acc;
       }, new Map<string, number>())
@@ -162,16 +209,31 @@ async function getData(month?: string, year?: string) {
       expenseCategoryColors.Others,
   }));
 
-  return {
-    monthlyData,
-    expenseCategories,
-    transactions: transactions.map((tx) => ({
+  const formattedTransactions: DashboardTransaction[] = transactions.map(
+    (tx) => ({
       date: tx.transactionDate?.toISOString().split("T")[0] || "",
       description: tx.description || "",
       category: tx.description?.split(" ")[0] || "Others",
-      amount: tx.amount ? Number(tx.amount) : 0,
-      type: tx.amount && Number(tx.amount) > 0 ? "Credit" : "Debit",
-    })),
+      amount:
+        tx.credit && Number(tx.credit) > 0
+          ? Number(tx.credit)
+          : tx.debit && Number(tx.debit) > 0
+          ? -Number(tx.debit)
+          : 0,
+      type:
+        tx.credit && Number(tx.credit) > 0
+          ? "Credit"
+          : tx.debit && Number(tx.debit) > 0
+          ? "Debit"
+          : "Neutral",
+    })
+  );
+
+  return {
+    monthlyData,
+    expenseCategories,
+    transactions: formattedTransactions,
+    availableMonths,
   };
 }
 
@@ -189,15 +251,16 @@ export default async function FinanceDashboard({
   const month = params?.month;
   const year = params?.year;
 
-  const { monthlyData, expenseCategories, transactions } = await getData(
-    month || currentMonth.toString(),
-    year || currentYear.toString()
-  );
+  const { monthlyData, expenseCategories, transactions, availableMonths } =
+    await getData(
+      month || currentMonth.toString(),
+      year || currentYear.toString()
+    );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 px-4 py-8">
       <div className="max-w-7xl mx-auto space-y-6">
-        <Header />
+        <Header availableMonths={availableMonths} />
 
         <SummaryCards monthlyData={monthlyData} />
 

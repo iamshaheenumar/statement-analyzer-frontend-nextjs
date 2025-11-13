@@ -9,6 +9,15 @@ type Props = {
 };
 
 export default function Charts({ monthlyData, expenseCategories }: Props) {
+  const maxValue = Math.max(
+    monthlyData.income,
+    monthlyData.expenses,
+    1 // prevent divide-by-zero
+  );
+  const incomeWidth = (monthlyData.income / maxValue) * 100;
+  const expenseWidth = (monthlyData.expenses / maxValue) * 100;
+  const isExpenseHigher = monthlyData.expenses > monthlyData.income;
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-lg border border-white/20 p-6">
@@ -26,7 +35,7 @@ export default function Charts({ monthlyData, expenseCategories }: Props) {
             <div className="h-8 bg-gray-100 rounded-full overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-green-500 to-emerald-500"
-                style={{ width: "100%" }}
+                style={{ width: `${incomeWidth}%` }}
               ></div>
             </div>
           </div>
@@ -43,12 +52,15 @@ export default function Charts({ monthlyData, expenseCategories }: Props) {
               <div
                 className="h-full bg-gradient-to-r from-red-500 to-pink-500"
                 style={{
-                  width: `${
-                    (monthlyData.expenses / monthlyData.income) * 100
-                  }%`,
+                  width: `${expenseWidth}%`,
                 }}
               ></div>
             </div>
+            {isExpenseHigher && (
+              <p className="text-xs text-red-500 mt-2">
+                Expenses exceed income this period.
+              </p>
+            )}
           </div>
         </div>
       </div>
