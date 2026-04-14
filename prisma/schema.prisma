@@ -3,12 +3,14 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Statement {
   id          String    @id
+  userId      String
   bank        String
   from_date   DateTime?
   to_date     DateTime?
@@ -20,6 +22,8 @@ model Statement {
   createdAt   DateTime  @default(now())
 
   transactions Transaction[]
+
+  @@index([userId])
 }
 
 model Transaction {

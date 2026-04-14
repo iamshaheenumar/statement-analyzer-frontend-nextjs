@@ -1,6 +1,7 @@
 "use server";
 
 import prisma from "@/services/prisma";
+import { getUser } from "@/lib/supabase/server";
 import type {
   ParsedData as DashboardParsedData,
   Transaction as DashboardTransaction,
@@ -12,12 +13,12 @@ type Transaction = DashboardTransaction;
 
 export async function saveStatementAction(data: ParsedData) {
   try {
-    if (!data) {
-      throw new Error("Empty body");
-    }
+    const user = await getUser();
+    if (!user) return { error: "Unauthorized", code: "AUTH" };
 
-    const { id, bank, summary, transactions, from_date, to_date, card_type } =
-      data;
+    if (!data) throw new Error("Empty body");
+
+    const { id, bank, summary, transactions, from_date, to_date, card_type } = data;
 
     if (!bank || !summary || !Array.isArray(transactions)) {
       throw new Error("Invalid payload");
@@ -40,6 +41,7 @@ export async function saveStatementAction(data: ParsedData) {
         },
         create: {
           id: statementId,
+          userId: user.id,
           bank,
           from_date: from_date ? new Date(from_date) : null,
           to_date: to_date ? new Date(to_date) : null,
@@ -51,16 +53,13 @@ export async function saveStatementAction(data: ParsedData) {
         },
       });
 
-      // Replace transactions
       await tx.transaction.deleteMany({ where: { statementId } });
 
       if (transactions.length > 0) {
         await tx.transaction.createMany({
           data: transactions.map((t: Transaction) => ({
             statementId,
-            transactionDate: t.transaction_date
-              ? new Date(t.transaction_date)
-              : null,
+            transactionDate: t.transaction_date ? new Date(t.transaction_date) : null,
             description: t.description || null,
             debit: (t.debit as any) ?? null,
             credit: (t.credit as any) ?? null,
@@ -77,14 +76,12 @@ export async function saveStatementAction(data: ParsedData) {
     if (err instanceof PrismaNS.PrismaClientKnownRequestError) {
       if (err.code === "P2021" || err.code === "P2022") {
         return {
-          error:
-            "Database schema is missing. Run `prisma migrate dev` or `prisma db push` to create tables.",
+          error: "Database schema is missing. Run `prisma db push` to create tables.",
           code: err.code,
         };
       }
       return { error: err.message, code: err.code };
     }
-
     return { error: err?.message || "Failed to save" };
   }
 }

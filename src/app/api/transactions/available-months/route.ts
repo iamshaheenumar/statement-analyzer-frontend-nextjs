@@ -10,7 +10,6 @@ function monthLabel(month: number, year: number) {
 
 export async function GET() {
   try {
-    // Prefer Statement.to_date if available
     const statements = await prisma.statement.findMany({
       where: { to_date: { not: null } },
       select: { to_date: true },
@@ -18,7 +17,7 @@ export async function GET() {
 
     const monthsSet = new Set<string>();
 
-    if (statements && statements.length > 0) {
+    if (statements.length > 0) {
       for (const s of statements) {
         if (!s.to_date) continue;
         const dt = new Date(s.to_date);
@@ -27,7 +26,6 @@ export async function GET() {
         monthsSet.add(`${year}-${String(month).padStart(2, "0")}`);
       }
     } else {
-      // Fallback to transactions
       const txns = await prisma.transaction.findMany({
         where: { transactionDate: { not: null } },
         select: { transactionDate: true },
@@ -48,10 +46,7 @@ export async function GET() {
         const month = parseInt(monthStr, 10);
         return { year, month, label: monthLabel(month, year) };
       })
-      .sort((a, b) => {
-        if (a.year !== b.year) return b.year - a.year;
-        return b.month - a.month;
-      });
+      .sort((a, b) => (a.year !== b.year ? b.year - a.year : b.month - a.month));
 
     return NextResponse.json({ months });
   } catch (err: any) {

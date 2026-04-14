@@ -1,12 +1,14 @@
-﻿"use client";
+"use client";
 
-import React, { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CloudUpload } from "lucide-react";
+import { CloudUpload, LogIn } from "lucide-react";
 import { toast } from "sonner";
 import type { ParsedDataWithId } from "@/features/dashboard/types";
 import { useParsedStorage } from "@/features/dashboard/useParsedStorage";
 import { saveStatementAction } from "@/app/actions/saveStatement";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { useEffect, useState } from "react";
 
 type Props = {
   parsedData?: ParsedDataWithId | null;
@@ -15,62 +17,84 @@ type Props = {
   className?: string;
 };
 
-export default function SaveToCloudButton({
-  parsedData,
-  saving: externalSaving,
-  onSavingChange,
-  className,
-}: Props) {
+export default function SaveToCloudButton({ parsedData, className }: Props) {
   const [isPending, startTransition] = useTransition();
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const { deleteParsed } = useParsedStorage();
   const router = useRouter();
-  const [internalSaving, setInternalSaving] = useState(false);
+  const supabase = createSupabaseBrowserClient();
 
-  const saving = externalSaving ?? internalSaving;
-  const setSaving = onSavingChange ?? setInternalSaving;
-
-  const disabled = !parsedData || saving;
-  const classes = [
-    "group relative overflow-hidden px-5 py-2.5 sm:px-6 sm:py-3.5 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-400 disabled:to-gray-500 text-white rounded-2xl font-semibold shadow-lg shadow-green-500/30 transition-all hover:shadow-2xl hover:shadow-green-500/50 hover:scale-105 disabled:shadow-none disabled:cursor-not-allowed",
-    className,
-  ]
-    .filter(Boolean)
-    .join(" ");
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsLoggedIn(!!session?.user);
+    });
+  }, []);
 
   const handleClick = () => {
     if (!parsedData || isPending) return;
 
+    // Guest — redirect to login
+    if (!isLoggedIn) {
+      router.push(`/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+      return;
+    }
+
     startTransition(async () => {
-      try {
-        await saveStatementAction(parsedData);
-        await deleteParsed(parsedData.id);
-        toast.success("Saved to cloud successfully!");
-        router.push("/statements");
-      } catch (error) {
-        console.error(error);
-        toast.error("Unable to save right now. Please try again later.");
+      const result = await saveStatementAction(parsedData);
+      if (result && "error" in result) {
+        if (result.code === "AUTH") {
+          router.push("/login");
+        } else {
+          toast.error(result.error || "Unable to save. Please try again.");
+        }
+        return;
       }
+      await deleteParsed(parsedData.id);
+      toast.success("Saved to cloud");
+      router.push("/statements");
     });
   };
+
+  // Still checking auth state — show neutral button
+  if (isLoggedIn === null) {
+    return (
+      <button
+        disabled
+        className={["inline-flex items-center gap-2 px-4 py-2 bg-slate-200 text-slate-400 text-sm font-semibold rounded-lg", className]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        <CloudUpload className="w-4 h-4" />
+        Save to Cloud
+      </button>
+    );
+  }
+
+  // Guest — show sign-in prompt
+  if (!isLoggedIn) {
+    return (
+      <button
+        onClick={handleClick}
+        className={["inline-flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold rounded-lg transition-colors", className]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        <LogIn className="w-4 h-4" />
+        Sign in to Save
+      </button>
+    );
+  }
 
   return (
     <button
       onClick={handleClick}
-      disabled={disabled}
-      aria-busy={saving}
-      className={classes}
+      disabled={!parsedData || isPending}
+      className={["inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white text-sm font-semibold rounded-lg transition-colors", className]
+        .filter(Boolean)
+        .join(" ")}
     >
-      <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
-      <span className="relative flex items-center justify-center gap-2">
-        <CloudUpload
-          className={`w-5 h-5 transition-transform ${
-            saving
-              ? "animate-bounce"
-              : "group-hover:-translate-y-1 group-hover:scale-110"
-          }`}
-        />
-        {saving ? "Saving..." : "Save to Cloud"}
-      </span>
+      <CloudUpload className={`w-4 h-4 ${isPending ? "animate-pulse" : ""}`} />
+      {isPending ? "Saving…" : "Save to Cloud"}
     </button>
   );
 }

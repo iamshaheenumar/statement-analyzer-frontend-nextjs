@@ -1,133 +1,126 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
-import { Search, Banknote } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Search, ArrowDown, ArrowUp, FileText } from "lucide-react";
 import { DashboardTransaction } from "@/app/dashboard/page";
 
 export default function TransactionsTable({
   transactions,
-  onRemove,
 }: {
   transactions: DashboardTransaction[];
-  onRemove?: (tx: DashboardTransaction) => void;
 }) {
-  const [searchTerm, setSearchTerm] = useState("");
+  const [search, setSearch] = useState("");
 
-  const filteredTransactions = useMemo(() => {
-    if (!searchTerm) return transactions;
-    const term = searchTerm.toLowerCase();
+  const filtered = useMemo(() => {
+    if (!search) return transactions;
+    const t = search.toLowerCase();
     return transactions.filter(
       (tx) =>
-        tx.description?.toLowerCase().includes(term) ||
-        tx.category?.toLowerCase().includes(term) ||
-        tx.type?.toLowerCase().includes(term)
+        tx.description?.toLowerCase().includes(t) ||
+        tx.category?.toLowerCase().includes(t)
     );
-  }, [transactions, searchTerm]);
-  return (
-    <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-lg border border-white/20 p-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg">
-            <Banknote className="w-5 h-5 text-white" />
-          </div>
-          <h3 className="text-lg font-bold text-gray-900">
-            Recent Transactions
-          </h3>
-        </div>
+  }, [transactions, search]);
 
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+  return (
+    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+      {/* Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 sm:px-5 py-4 border-b border-slate-100">
+        <p className="text-sm font-semibold text-slate-800">
+          Transactions
+          <span className="ml-2 text-xs font-normal text-slate-400">
+            {filtered.length} of {transactions.length}
+          </span>
+        </p>
+        <div className="relative w-full sm:w-56">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
           <input
             type="text"
-            placeholder="Search transactions..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-2xl text-sm focus:border-blue-400 focus:outline-none transition-all"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search…"
+            className="w-full pl-8 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
           />
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="bg-gray-50 border-b-2 border-gray-200">
-              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">
-                Date
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">
-                Description
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">
-                Category
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">
-                Type
-              </th>
-              <th className="px-4 py-3 text-right text-xs font-bold text-gray-600 uppercase">
-                Amount
-              </th>
-              {onRemove && (
-                <th className="px-4 py-3 text-right text-xs font-bold text-gray-600 uppercase">
-                  Actions
-                </th>
-              )}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {filteredTransactions.map((txn: any, i: number) => (
-              <tr key={i} className="hover:bg-gray-50 transition-colors">
-                <td className="px-4 py-4 text-sm text-gray-600">
-                  {txn.transaction_date ?? txn.date ?? "-"}
-                </td>
-                <td className="px-4 py-4 text-sm font-medium text-gray-900">
-                  {txn.description ?? txn.description_raw ?? "-"}
-                </td>
-                <td className="px-4 py-4">
-                  <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700">
-                    {txn.category ?? txn.category_name ?? "-"}
-                  </span>
-                </td>
-                <td className="px-4 py-4 text-sm text-gray-600">
-                  {txn.type ?? txn.card_type ?? "-"}
-                </td>
-                <td
-                  className={`px-4 py-4 text-sm font-bold text-right ${
-                    (txn.amount ?? txn.debit ?? txn.credit) > 0
-                      ? "text-green-600"
-                      : "text-red-600"
+      {filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-14 text-slate-400">
+          <FileText className="w-8 h-8 mb-2" />
+          <p className="text-sm">No transactions found</p>
+        </div>
+      ) : (
+        <>
+          {/* Mobile cards */}
+          <ul className="divide-y divide-slate-100 md:hidden">
+            {filtered.map((tx, i) => (
+              <li key={i} className="flex items-center justify-between gap-3 px-4 py-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-slate-800 truncate">{tx.description}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{tx.date}</p>
+                </div>
+                <span
+                  className={`text-sm font-semibold tabular-nums shrink-0 ${
+                    tx.amount >= 0 ? "text-green-600" : "text-red-500"
                   }`}
                 >
-                  {txn.amount
-                    ? txn.amount > 0
-                      ? "+"
-                      : "-"
-                    : txn.credit
-                    ? "+"
-                    : txn.debit
-                    ? "-"
-                    : ""}
-                  AED{" "}
-                  {Math.abs(
-                    (txn.amount ?? txn.debit ?? txn.credit) || 0
-                  ).toFixed(2)}
-                </td>
-                {onRemove && (
-                  <td className="px-4 py-4 text-right">
-                    <button
-                      title="Remove transaction"
-                      aria-label="Remove transaction"
-                      onClick={() => onRemove(txn)}
-                      className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 transition-colors shadow-sm"
-                    >
-                      Remove
-                    </button>
-                  </td>
-                )}
-              </tr>
+                  {tx.amount >= 0 ? "+" : ""}
+                  {tx.amount.toFixed(2)}
+                </span>
+              </li>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </ul>
+
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 bg-slate-50">
+                  {["Date", "Description", "Category", "Type", "Amount"].map((h) => (
+                    <th
+                      key={h}
+                      className={`px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wide ${
+                        h === "Amount" ? "text-right" : "text-left"
+                      }`}
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filtered.map((tx, i) => (
+                  <tr key={i} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{tx.date}</td>
+                    <td className="px-4 py-3 font-medium text-slate-800 max-w-xs truncate">
+                      {tx.description}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
+                        {tx.category}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-500">{tx.type}</td>
+                    <td className="px-4 py-3 text-right">
+                      <span
+                        className={`inline-flex items-center gap-1 text-sm font-semibold tabular-nums ${
+                          tx.amount >= 0 ? "text-green-600" : "text-red-500"
+                        }`}
+                      >
+                        {tx.amount >= 0 ? (
+                          <ArrowDown className="w-3 h-3" />
+                        ) : (
+                          <ArrowUp className="w-3 h-3" />
+                        )}
+                        AED {Math.abs(tx.amount).toFixed(2)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
     </div>
   );
 }

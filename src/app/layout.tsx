@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Statement Analysis",
-  description: "Parse your statement for analysiss",
+  title: "Trace",
+  description: "Trace your spending — parse bank statements and visualise your finances.",
 };
 
 export default function RootLayout({

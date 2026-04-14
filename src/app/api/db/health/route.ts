@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
 import prisma from "@/services/prisma";
 
-export const dynamic = "force-dynamic"; // avoid static caching
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    // Simple connectivity check + some metadata
     const rows = (await prisma.$queryRaw<any[]>`
       SELECT now() as now, version() as version, current_database() as db
     `) as Array<{ now: Date; version: string; db: string }>;
@@ -25,4 +24,3 @@ export async function GET() {
     );
   }
 }
-

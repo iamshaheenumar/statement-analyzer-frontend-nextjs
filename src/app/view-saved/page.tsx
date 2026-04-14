@@ -1,5 +1,7 @@
 import { Suspense } from "react";
+import Navbar from "@/components/Navbar";
 import ViewSaved from "@/features/viewSaved/ViewSaved";
+import { AlertCircle } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -12,33 +14,31 @@ export default async function Page({
 }) {
   const { id } = await searchParams;
 
-  if (!id) {
-    return (
-      <div className="min-h-screen bg-gray-50 p-4">
-        <div className="max-w-7xl mx-auto">
-          <div className="bg-white rounded-lg shadow p-6">
-            <h1 className="text-xl font-semibold text-red-600">Error</h1>
-            <p className="mt-2 text-gray-600">Statement ID is required</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <main className="min-h-screen bg-gray-50 p-4">
-      <div className="max-w-7xl mx-auto">
-        <Suspense
-          fallback={
-            <div className="animate-pulse bg-white rounded-lg shadow p-6">
-              <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
-              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+    <div className="min-h-screen bg-slate-50">
+      <Navbar />
+      <main className="max-w-5xl mx-auto px-4 py-8">
+        {!id ? (
+          <div className="flex items-start gap-2.5 p-4 bg-red-50 border border-red-200 rounded-xl">
+            <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-red-700">Missing ID</p>
+              <p className="text-xs text-red-600 mt-0.5">Statement ID is required</p>
             </div>
-          }
-        >
-          <ViewSaved id={id} />
-        </Suspense>
-      </div>
-    </main>
+          </div>
+        ) : (
+          <Suspense
+            fallback={
+              <div className="space-y-4 animate-pulse">
+                <div className="h-20 bg-slate-200 rounded-2xl" />
+                <div className="h-64 bg-slate-200 rounded-2xl" />
+              </div>
+            }
+          >
+            <ViewSaved id={id} />
+          </Suspense>
+        )}
+      </main>
+    </div>
   );
 }

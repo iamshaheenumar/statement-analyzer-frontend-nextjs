@@ -1,4 +1,5 @@
-﻿import ViewParsed from "@/features/viewParsed/ViewParsed";
+import Navbar from "@/components/Navbar";
+import ViewParsed from "@/features/viewParsed/ViewParsed";
 
 type PageProps = {
   searchParams: Promise<{ id?: string }>;
@@ -6,6 +7,10 @@ type PageProps = {
 
 export default async function ViewParsedPage(props: PageProps) {
   const { id } = await props.searchParams;
-  return <ViewParsed id={id} />;
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <Navbar />
+      <ViewParsed id={id} />
+    </div>
+  );
 }
-

@@ -7,8 +7,7 @@ import { FormValues } from "@/features/upload/types";
 import UploadForm from "@/features/upload/UploadForm";
 import ParsedList from "@/features/dashboard/ParsedList";
 import { useParsedStorage } from "@/features/dashboard/useParsedStorage";
-import { ClipboardList, LayoutDashboard } from "lucide-react";
-import Link from "next/link";
+import Navbar from "@/components/Navbar";
 
 export default function UploadPage() {
   const router = useRouter();
@@ -32,59 +31,43 @@ export default function UploadPage() {
       const saved = await addParsed(res.data);
       router.push(`/view-parsed?id=${saved?.id}`);
     } catch (err: any) {
-      setError(err.response?.data?.detail || err.response?.data?.error || "Failed to parse file");
+      setError(
+        err.response?.data?.detail ||
+          err.response?.data?.error ||
+          "Failed to parse file"
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSelectParsed = (id: string) => {
-    router.push(`/view-parsed?id=${id}`);
-  };
-
-  const handleDelete = (id: string) => deleteParsed(id);
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 px-4 py-12">
-      <div className="max-w-4xl mx-auto mb-6">
-        <div className="flex gap-3 justify-end">
-          <Link
-            href="/dashboard"
-            className="group relative overflow-hidden px-5 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-2xl font-semibold shadow-lg shadow-purple-500/30 hover:shadow-xl hover:shadow-purple-500/50 transition-all hover:scale-105"
-          >
-            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
-            <span className="relative flex items-center gap-2 text-sm">
-              <LayoutDashboard className="w-4 h-4" />
-              Dashboard
-            </span>
-          </Link>
+    <div className="min-h-screen bg-slate-50">
+      <Navbar />
 
-          <Link
-            href="/statements"
-            className="group relative overflow-hidden px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl font-semibold shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/50 transition-all hover:scale-105"
-          >
-            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
-            <span className="relative flex items-center gap-2 text-sm">
-              <ClipboardList className="w-4 h-4" />
-              Statements
-            </span>
-          </Link>
+      {/* Page content */}
+      <main className="max-w-xl mx-auto px-4 py-12">
+        <div className="mb-7">
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+            Import Statement
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Upload a bank PDF to extract and review your transactions.
+          </p>
         </div>
-      </div>
 
-      <div className="max-w-2xl mx-auto space-y-8">
-        {/* Upload Form */}
         <UploadForm onSubmit={onSubmit} isLoading={isLoading} error={error} />
 
-        {/* Recent Statements - Only shows when there are items */}
         {parsedList.length > 0 && (
-          <ParsedList
-            parsedList={parsedList}
-            onSelect={handleSelectParsed}
-            onDelete={handleDelete}
-          />
+          <div className="mt-8">
+            <ParsedList
+              parsedList={parsedList}
+              onSelect={(id) => router.push(`/view-parsed?id=${id}`)}
+              onDelete={(id) => deleteParsed(id)}
+            />
+          </div>
         )}
-      </div>
+      </main>
     </div>
   );
 }

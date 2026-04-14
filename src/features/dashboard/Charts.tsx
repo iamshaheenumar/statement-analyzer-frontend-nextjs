@@ -1,103 +1,86 @@
 "use client";
 
-import React from "react";
-
 type ExpenseCat = { name: string; amount: number; color: string };
 type Props = {
   monthlyData: { income: number; expenses: number };
   expenseCategories: ExpenseCat[];
 };
 
+const fmt = (n: number) =>
+  n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 export default function Charts({ monthlyData, expenseCategories }: Props) {
-  const maxValue = Math.max(
-    monthlyData.income,
-    monthlyData.expenses,
-    1 // prevent divide-by-zero
-  );
-  const incomeWidth = (monthlyData.income / maxValue) * 100;
-  const expenseWidth = (monthlyData.expenses / maxValue) * 100;
-  const isExpenseHigher = monthlyData.expenses > monthlyData.income;
+  const max = Math.max(monthlyData.income, monthlyData.expenses, 1);
+  const incomeW  = (monthlyData.income   / max) * 100;
+  const expenseW = (monthlyData.expenses / max) * 100;
+
+  const totalExpenses = expenseCategories.reduce((s, c) => s + c.amount, 0) || 1;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-lg border border-white/20 p-6">
-        <h3 className="text-lg font-bold text-gray-900 mb-4">
-          Income vs Expenses
-        </h3>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      {/* Income vs Expenses */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+        <p className="text-sm font-semibold text-slate-700 mb-4">Income vs Expenses</p>
         <div className="space-y-4">
-          <div>
-            <div className="flex justify-between mb-2">
-              <span className="text-sm font-medium text-gray-600">Income</span>
-              <span className="text-sm font-bold text-green-600">
-                AED {monthlyData.income}
-              </span>
-            </div>
-            <div className="h-8 bg-gray-100 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-green-500 to-emerald-500"
-                style={{ width: `${incomeWidth}%` }}
-              ></div>
-            </div>
-          </div>
-          <div>
-            <div className="flex justify-between mb-2">
-              <span className="text-sm font-medium text-gray-600">
-                Expenses
-              </span>
-              <span className="text-sm font-bold text-red-600">
-                AED {monthlyData.expenses}
-              </span>
-            </div>
-            <div className="h-8 bg-gray-100 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-red-500 to-pink-500"
-                style={{
-                  width: `${expenseWidth}%`,
-                }}
-              ></div>
-            </div>
-            {isExpenseHigher && (
-              <p className="text-xs text-red-500 mt-2">
-                Expenses exceed income this period.
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-lg border border-white/20 p-6">
-        <h3 className="text-lg font-bold text-gray-900 mb-4">
-          Expense Categories
-        </h3>
-        <div className="space-y-3">
-          {expenseCategories.slice(0, 5).map((cat, i) => (
-            <div key={i} className="flex items-center gap-3">
-              <div
-                className="w-3 h-3 rounded-full"
-                style={{ backgroundColor: cat.color }}
-              ></div>
-              <div className="flex-1">
-                <div className="flex justify-between mb-1">
-                  <span className="text-sm font-medium text-gray-700">
-                    {cat.name}
-                  </span>
-                  <span className="text-sm font-bold text-gray-900">
-                    ${cat.amount}
-                  </span>
-                </div>
-                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full transition-all duration-500"
-                    style={{
-                      width: `${(cat.amount / monthlyData.expenses) * 100}%`,
-                      backgroundColor: cat.color,
-                    }}
-                  ></div>
-                </div>
+          {[
+            { label: "Income",   value: monthlyData.income,   width: incomeW,  bar: "bg-green-500" },
+            { label: "Expenses", value: monthlyData.expenses, width: expenseW, bar: "bg-red-400"   },
+          ].map(({ label, value, width, bar }) => (
+            <div key={label}>
+              <div className="flex justify-between text-xs font-medium text-slate-600 mb-1.5">
+                <span>{label}</span>
+                <span className="tabular-nums font-semibold text-slate-800">AED {fmt(value)}</span>
+              </div>
+              <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${bar}`}
+                  style={{ width: `${width}%` }}
+                />
               </div>
             </div>
           ))}
+          {monthlyData.expenses > monthlyData.income && (
+            <p className="text-xs text-red-500 font-medium">
+              Expenses exceed income this period.
+            </p>
+          )}
         </div>
+      </div>
+
+      {/* Expense Categories */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+        <p className="text-sm font-semibold text-slate-700 mb-4">Expense Breakdown</p>
+        {expenseCategories.length === 0 ? (
+          <p className="text-sm text-slate-400 text-center py-6">No expense data</p>
+        ) : (
+          <div className="space-y-3">
+            {expenseCategories.slice(0, 5).map((cat, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <div
+                  className="w-2.5 h-2.5 rounded-full shrink-0"
+                  style={{ backgroundColor: cat.color }}
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between text-xs font-medium text-slate-600 mb-1">
+                    <span className="truncate">{cat.name}</span>
+                    <span className="tabular-nums text-slate-800 ml-2">
+                      AED {fmt(cat.amount)}
+                    </span>
+                  </div>
+                  <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${(cat.amount / totalExpenses) * 100}%`,
+                        backgroundColor: cat.color,
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

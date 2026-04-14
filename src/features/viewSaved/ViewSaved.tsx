@@ -1,20 +1,17 @@
 import prisma from "@/services/prisma";
+import { getUser } from "@/lib/supabase/server";
 import SavedHeader from "./components/SavedHeader";
 import TransactionsTable from "../viewParsed/components/TransactionsTable";
+import { AlertCircle } from "lucide-react";
 
-type Props = {
-  id: string;
-};
+type Props = { id: string };
 
-// Fetch statement + related transactions directly from DB
-async function getStatement(id: string) {
-  const statement = await prisma.statement.findUnique({
-    where: { id },
+async function getStatement(id: string, userId: string) {
+  const statement = await prisma.statement.findFirst({
+    where: { id, userId },
   });
 
-  if (!statement) {
-    throw new Error("Statement not found");
-  }
+  if (!statement) return null;
 
   const transactions = await prisma.transaction.findMany({
     where: { statementId: id },
@@ -47,14 +44,27 @@ async function getStatement(id: string) {
 }
 
 export default async function ViewSaved({ id }: Props) {
-  const statement = await getStatement(id);
+  const user = await getUser();
+  const statement = await getStatement(id, user!.id);
+
+  if (!statement) {
+    return (
+      <div className="flex items-start gap-2.5 p-4 bg-red-50 border border-red-200 rounded-xl">
+        <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
+        <div>
+          <p className="text-sm font-semibold text-red-700">Statement not found</p>
+          <p className="text-xs text-red-600 mt-0.5">
+            This statement doesn&apos;t exist or belongs to another account.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <SavedHeader statement={statement} />
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <TransactionsTable transactions={statement.transactions} />
-      </div>
+      <TransactionsTable transactions={statement.transactions} />
     </div>
   );
 }

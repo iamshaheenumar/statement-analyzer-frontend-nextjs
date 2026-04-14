@@ -1,122 +1,76 @@
 "use client";
 
-import React from "react";
-import { Wallet, ChevronDown, FileText, Upload } from "lucide-react";
+import { ChevronDown, Upload } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
-type HeaderProps = {
+const MONTHS = [
+  "January","February","March","April","May","June",
+  "July","August","September","October","November","December",
+];
+
+type Props = {
   availableMonths: { month: string; year: string }[];
 };
 
-export default function Header({ availableMonths }: HeaderProps) {
+export default function Header({ availableMonths }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const now = new Date();
 
-  const currentDate = new Date();
-  const currentMonth =
-    searchParams.get("month") || (currentDate.getMonth() + 1).toString();
-  const currentYear =
-    searchParams.get("year") || currentDate.getFullYear().toString();
+  const currentMonth = searchParams.get("month") || String(now.getMonth() + 1);
+  const currentYear  = searchParams.get("year")  || String(now.getFullYear());
 
-  const months = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-  ];
-
-  const handleMonthChange = (month: string, year: string) => {
-    const params = new URLSearchParams(searchParams);
-    params.set("month", month);
-    params.set("year", year);
-    router.push(`/dashboard?${params.toString()}`);
-  };
-
-  const fallbackMonthOptions = Array.from({ length: 12 }, (_, i) => {
-    const date = new Date();
-    date.setMonth(date.getMonth() - i);
-    return {
-      month: (date.getMonth() + 1).toString(),
-      year: date.getFullYear().toString(),
-      label: `${months[date.getMonth()]} ${date.getFullYear()}`,
-    };
+  const fallback = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - i);
+    return { month: String(d.getMonth() + 1), year: String(d.getFullYear()) };
   });
 
-  const monthOptions =
-    availableMonths.length > 0
-      ? availableMonths.map(({ month, year }) => {
-          const monthIndex = Number(month) - 1;
-          const labelMonth = months[monthIndex] || `Month ${month}`;
-          return {
-            month,
-            year,
-            label: `${labelMonth} ${year}`,
-          };
-        })
-      : fallbackMonthOptions;
+  const options = (availableMonths.length > 0 ? availableMonths : fallback).map(
+    ({ month, year }) => ({
+      value: `${month}-${year}`,
+      label: `${MONTHS[+month - 1]} ${year}`,
+    })
+  );
+
+  const handleChange = (val: string) => {
+    const [m, y] = val.split("-");
+    const p = new URLSearchParams(searchParams);
+    p.set("month", m);
+    p.set("year", y);
+    router.push(`/dashboard?${p.toString()}`);
+  };
 
   return (
-    <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl border border-white/20 p-6">
-      <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-        <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center shadow-lg shrink-0">
-            <Wallet className="w-7 h-7 text-white" />
-          </div>
-          <div className="text-left">
-            <h1 className="text-2xl sm:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-gray-900 via-blue-900 to-purple-900">
-              Finance Dashboard
-            </h1>
-            <p className="text-sm text-gray-500 mt-2">
-              Track your spending and savings
-            </p>
-          </div>
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h1 className="text-xl font-bold text-slate-900 tracking-tight">Dashboard</h1>
+        <p className="text-sm text-slate-500 mt-0.5">Overview of your transactions</p>
+      </div>
+
+      <div className="flex items-center gap-2">
+        {/* Month selector */}
+        <div className="relative">
+          <select
+            value={`${currentMonth}-${currentYear}`}
+            onChange={(e) => handleChange(e.target.value)}
+            className="appearance-none pl-3 pr-8 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+          >
+            {options.map(({ value, label }) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
         </div>
 
-        <div className="flex w-full flex-col gap-4 md:w-auto">
-          <div className="relative w-full md:min-w-[220px]">
-            <select
-              value={`${currentMonth}-${currentYear}`}
-              onChange={(e) => {
-                const [month, year] = e.target.value.split("-");
-                handleMonthChange(month, year);
-              }}
-              className="w-full appearance-none px-5 py-3 pr-12 bg-white border-2 border-gray-200 rounded-2xl font-semibold text-gray-700 cursor-pointer hover:border-blue-400 focus:border-blue-500 focus:outline-none transition-all"
-            >
-              {monthOptions.map(({ month, year, label }) => (
-                <option key={`${month}-${year}`} value={`${month}-${year}`}>
-                  {label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-          </div>
-
-          <div className="flex flex-wrap gap-3">
-            <Link
-              href="/statements"
-              className="flex-1 min-w-[150px] md:flex-none inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border-2 border-gray-200 text-sm font-semibold text-gray-700 hover:border-blue-400 hover:text-blue-600 transition-colors"
-            >
-              <FileText className="w-4 h-4" />
-              Statements
-            </Link>
-            <Link
-              href="/upload"
-              className="flex-1 min-w-[150px] md:flex-none inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm font-semibold shadow-lg hover:shadow-xl transition-shadow"
-            >
-              <Upload className="w-4 h-4" />
-              Upload
-            </Link>
-          </div>
-        </div>
+        <Link
+          href="/upload"
+          className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+        >
+          <Upload className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Upload</span>
+        </Link>
       </div>
     </div>
   );

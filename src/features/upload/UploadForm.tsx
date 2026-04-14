@@ -1,17 +1,19 @@
 "use client";
+
 import React, { useState } from "react";
 import { toast } from "sonner";
 import {
   Upload,
   Lock,
   FileText,
-  Cloud,
-  Zap,
-  CheckCircle,
+  X,
   AlertCircle,
   Loader2,
+  ArrowRight,
+  Shield,
+  Zap,
+  Building2,
 } from "lucide-react";
-export const dynamic = "force-dynamic";
 
 type FormValues = {
   file: FileList;
@@ -30,266 +32,190 @@ export default function UploadForm({ onSubmit, isLoading, error }: Props) {
   const [isDragging, setIsDragging] = useState(false);
   const [isPasswordProtected, setIsPasswordProtected] = useState(false);
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
+  const checkFilePassword = async (f: File) => {
+    try {
+      const { checkIsPasswordProtected } = await import("@/services/parsePDF");
+      const needs = await checkIsPasswordProtected(f);
+      setIsPasswordProtected(needs);
+    } catch {
+      toast.error("Could not read the PDF file");
+    }
   };
 
-  const handleDragLeave = () => {
-    setIsDragging(false);
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = e.target.files?.[0];
+    if (selected) {
+      setFile(selected);
+      setPassword("");
+      setIsPasswordProtected(false);
+      await checkFilePassword(selected);
+    }
   };
 
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile?.type === "application/pdf") {
-      setFile(droppedFile);
+    const dropped = e.dataTransfer.files[0];
+    if (dropped?.type === "application/pdf") {
+      setFile(dropped);
       setPassword("");
       setIsPasswordProtected(false);
-      await checkFilePassword(droppedFile);
+      await checkFilePassword(dropped);
+    } else {
+      toast.error("Please drop a PDF file");
     }
   };
 
-  const checkFilePassword = async (file: File) => {
-    try {
-      const { checkIsPasswordProtected } = await import("@/services/parsePDF");
-      const needsPassword = await checkIsPasswordProtected(file);
-      setIsPasswordProtected(needsPassword);
-    } catch (err) {
-      toast.error("Error checking PDF password");
-      console.error("Error checking password:", err);
-    }
-  };
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      setPassword("");
-      setIsPasswordProtected(false);
-      await checkFilePassword(selectedFile);
-    }
-  };
-
-  const handleServerSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file) {
-      toast.error("Please select a PDF file first");
-      return;
-    }
-    if (isPasswordProtected && !password) {
-      toast.error("This PDF requires a password");
-      return;
-    }
-    const formData = { file: [file] as any, password };
-    await onSubmit(formData);
+    if (!file) return toast.error("Please select a PDF file");
+    if (isPasswordProtected && !password)
+      return toast.error("This PDF requires a password");
+    await onSubmit({ file: [file] as any, password });
   };
 
-  const handleClientParse = async () => {
-    if (!file) {
-      toast.error("Please select a PDF file first");
-      return;
-    }
-    // Client-side parsing logic would go here
-    toast.info(`Parsing ${file.name} locally...`);
+  const removeFile = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setFile(null);
+    setPassword("");
+    setIsPasswordProtected(false);
   };
 
   return (
-    <div className="items-center justify-center px-4 py-12">
-      <div className="max-w-2xl w-full">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-3xl bg-gradient-to-br from-blue-600 to-purple-600 shadow-2xl shadow-blue-500/30 mb-4">
-            <Upload className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-gray-900 via-blue-900 to-purple-900 mb-3">
-            Upload Your Statement
-          </h1>
-          <p className="text-gray-600 text-lg">
-            Parse and analyze your bank statements instantly
-          </p>
-        </div>
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <form onSubmit={handleSubmit}>
+        <div className="p-6 space-y-5">
+          {/* File drop zone */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              PDF File <span className="text-red-500">*</span>
+            </label>
 
-        {/* Main Form Card */}
-        <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 p-8 mb-6">
-          <form onSubmit={handleServerSubmit} className="space-y-6">
-            {/* File Upload Area */}
-            <div>
-              <label className="block text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">
-                PDF Document <span className="text-red-500">*</span>
-              </label>
-
-              <div
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                className={`relative group border-3 border-dashed rounded-2xl transition-all duration-300 ${
-                  isDragging
-                    ? "border-blue-500 bg-blue-50"
-                    : file
-                    ? "border-green-400 bg-green-50"
-                    : "border-gray-300 bg-gray-50 hover:border-blue-400 hover:bg-blue-50/50"
-                }`}
-              >
-                <input
-                  type="file"
-                  accept="application/pdf"
-                  onChange={handleFileChange}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                />
-
-                <div className="p-8 text-center">
-                  {file ? (
-                    <div className="space-y-3">
-                      <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-500 shadow-lg">
-                        <CheckCircle className="w-8 h-8 text-white" />
-                      </div>
-                      <div>
-                        <p className="text-lg font-bold text-gray-900 mb-1">
-                          {file.name}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          {(file.size / 1024 / 1024).toFixed(2)} MB
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setFile(null);
-                        }}
-                        className="text-sm text-red-600 hover:text-red-700 font-semibold underline"
-                      >
-                        Remove file
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-100 to-purple-100 group-hover:from-blue-200 group-hover:to-purple-200 transition-all">
-                        <FileText className="w-8 h-8 text-blue-600" />
-                      </div>
-                      <div>
-                        <p className="text-lg font-bold text-gray-900 mb-1">
-                          Drop your PDF here
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          or{" "}
-                          <span className="text-blue-600 font-semibold">
-                            browse
-                          </span>{" "}
-                          to upload
-                        </p>
-                      </div>
-                      <p className="text-xs text-gray-400">
-                        Maximum file size: 10MB
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Password Input */}
-            {file && isPasswordProtected && (
-              <div>
-                <label className="block text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">
-                  Password Required <span className="text-red-500">*</span>
-                </label>
-                <div className="relative group">
-                  <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl opacity-0 group-hover:opacity-20 blur transition-opacity duration-300"></div>
-                  <div className="relative flex items-center bg-gradient-to-br from-gray-50 to-white border-2 border-gray-200 rounded-2xl px-4 py-3.5 transition-all duration-300 focus-within:border-purple-500 focus-within:shadow-lg focus-within:shadow-purple-500/20">
-                    <Lock className="w-5 h-5 text-gray-400 mr-3" />
-                    <input
-                      type="password"
-                      placeholder="Enter PDF password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="flex-1 outline-none bg-transparent text-gray-800 placeholder-gray-400 text-sm font-medium"
-                      required
-                    />
+            <div
+              onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={handleDrop}
+              className={`relative rounded-xl border-2 border-dashed transition-colors ${
+                isDragging
+                  ? "border-blue-400 bg-blue-50"
+                  : file
+                  ? "border-slate-200 bg-slate-50"
+                  : "border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-slate-100"
+              }`}
+            >
+              {file ? (
+                <div className="flex items-center gap-3 p-4">
+                  <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <FileText className="w-4.5 h-4.5 text-blue-600" />
                   </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-slate-900 truncate">
+                      {file.name}
+                    </p>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      {(file.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={removeFile}
+                    className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
+                    aria-label="Remove file"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
-              </div>
-            )}
-
-            {/* Action Buttons */}
-            <div className="grid grid-cols-1 gap-4 pt-2">
-              {/* Server Parse Button */}
-              <button
-                type="submit"
-                disabled={isLoading || !file}
-                className="group relative overflow-hidden px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:from-gray-400 disabled:to-gray-500 text-white rounded-2xl font-bold shadow-lg shadow-blue-500/30 hover:shadow-2xl hover:shadow-blue-500/50 disabled:shadow-none transition-all hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed"
-              >
-                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
-                <span className="relative flex items-center justify-center gap-2">
-                  <Cloud
-                    className={`w-5 h-5 ${
-                      isLoading
-                        ? "animate-bounce"
-                        : "group-hover:-translate-y-1 group-hover:scale-110"
-                    }`}
+              ) : (
+                <>
+                  <input
+                    type="file"
+                    accept="application/pdf"
+                    onChange={handleFileChange}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   />
-                  {isLoading ? "Parsing data..." : "Get Data"}
-                </span>
-              </button>
-
-              {/* Client Parse Button */}
-              {/* <button
-                type="button"
-                onClick={handleClientParse}
-                disabled={!file}
-                className="group relative overflow-hidden px-6 py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-400 disabled:to-gray-500 text-white rounded-2xl font-bold shadow-lg shadow-green-500/30 hover:shadow-2xl hover:shadow-green-500/50 disabled:shadow-none transition-all hover:scale-105 disabled:scale-100 disabled:cursor-not-allowed"
-              >
-                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
-                <span className="relative flex items-center justify-center gap-2">
-                  <Zap className="w-5 h-5" />
-                  Parse Locally
-                </span>
-              </button> */}
+                  <div className="py-10 flex flex-col items-center text-center px-4">
+                    <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center mb-3">
+                      <Upload className="w-5 h-5 text-slate-400" />
+                    </div>
+                    <p className="text-sm font-medium text-slate-700">
+                      Drop your PDF here or{" "}
+                      <span className="text-blue-600">browse</span>
+                    </p>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Up to 10 MB · Password-protected files supported
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
-          </form>
+          </div>
 
-          {/* Error Message */}
-          {error && (
-            <div className="mt-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-xl">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
-                <p className="text-sm font-semibold text-red-700">{error}</p>
+          {/* Password field */}
+          {file && isPasswordProtected && (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Password <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                <input
+                  type="password"
+                  placeholder="Enter PDF password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="w-full pl-9 pr-4 py-2.5 text-sm border border-slate-200 rounded-lg bg-white placeholder:text-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
+                />
               </div>
             </div>
           )}
+
+          {/* Error banner */}
+          {error && (
+            <div className="flex items-start gap-2.5 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
+          )}
+
+          {/* Submit */}
+          <button
+            type="submit"
+            disabled={!file || isLoading}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-colors
+              bg-blue-600 hover:bg-blue-700 text-white
+              disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Parsing…
+              </>
+            ) : (
+              <>
+                Parse Statement
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+          </button>
         </div>
 
-        {/* Features Section */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white/60 backdrop-blur-xl rounded-2xl p-5 border border-white/20">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mb-3 shadow-lg">
-              <Zap className="w-5 h-5 text-white" />
-            </div>
-            <h3 className="font-bold text-gray-900 mb-1">Fast Processing</h3>
-            <p className="text-sm text-gray-600">Parse statements in seconds</p>
-          </div>
-
-          <div className="bg-white/60 backdrop-blur-xl rounded-2xl p-5 border border-white/20">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center mb-3 shadow-lg">
-              <Lock className="w-5 h-5 text-white" />
-            </div>
-            <h3 className="font-bold text-gray-900 mb-1">Secure & Private</h3>
-            <p className="text-sm text-gray-600">Your data stays protected</p>
-          </div>
-
-          <div className="bg-white/60 backdrop-blur-xl rounded-2xl p-5 border border-white/20">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center mb-3 shadow-lg">
-              <CheckCircle className="w-5 h-5 text-white" />
-            </div>
-            <h3 className="font-bold text-gray-900 mb-1">Auto Detection</h3>
-            <p className="text-sm text-gray-600">
-              Identifies bank automatically
-            </p>
-          </div>
+        {/* Footer bar */}
+        <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex flex-wrap items-center gap-5">
+          <span className="flex items-center gap-1.5 text-xs text-slate-400">
+            <Shield className="w-3.5 h-3.5" />
+            Processed locally
+          </span>
+          <span className="flex items-center gap-1.5 text-xs text-slate-400">
+            <Zap className="w-3.5 h-3.5" />
+            Instant results
+          </span>
+          <span className="flex items-center gap-1.5 text-xs text-slate-400">
+            <Building2 className="w-3.5 h-3.5" />
+            UAE banks supported
+          </span>
         </div>
-      </div>
+      </form>
     </div>
   );
 }
