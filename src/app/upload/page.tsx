@@ -21,20 +21,18 @@ export default function UploadPage() {
     setIsLoading(true);
 
     try {
-      const formData = new FormData();
-      formData.append("file", data.file[0]);
-      if (data.password) formData.append("password", data.password);
-
-      const res = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/parse`,
-        formData,
-        { headers: { "Content-Type": "multipart/form-data" } }
+      const { extractPdfPages } = await import("@/services/parsePDF");
+      const pages = await extractPdfPages(
+        data.file[0],
+        data.password || undefined
       );
+
+      const res = await axios.post("/api/parse", { pages });
 
       const saved = await addParsed(res.data);
       router.push(`/view-parsed?id=${saved?.id}`);
     } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to parse file");
+      setError(err.response?.data?.detail || err.response?.data?.error || "Failed to parse file");
     } finally {
       setIsLoading(false);
     }
