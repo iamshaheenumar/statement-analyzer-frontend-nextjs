@@ -4,6 +4,7 @@ import { parseMashreq } from './mashreq';
 import { parseEnbd } from './enbd';
 import { parseEmiratesIslamic } from './emiratesislamic';
 import { parseRakbank } from './rakbank';
+import { parseCbd } from './cbd';
 import { parseGeneric } from './generic';
 
 type Parser = (pages: PageContent[]) => ParseResult;
@@ -13,6 +14,7 @@ const PARSERS: Record<string, Parser> = {
   enbd: parseEnbd,
   emiratesislamic: parseEmiratesIslamic,
   rakbank: parseRakbank,
+  cbd: parseCbd,
 };
 
 /**

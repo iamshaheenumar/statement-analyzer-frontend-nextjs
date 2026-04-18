@@ -73,10 +73,10 @@ export default function StatementsList({ items }: Props) {
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
         <ul className="divide-y divide-slate-100">
           {items.map((item) => (
-            <li key={item.id} className="relative group">
+            <li key={item.id} className="group flex items-stretch">
               <a
                 href={`/view-saved?id=${item.id}`}
-                className="block px-4 sm:px-5 py-4 hover:bg-slate-50 transition-colors"
+                className="flex-1 min-w-0 px-4 sm:px-5 py-4 hover:bg-slate-50 transition-colors"
               >
                 {/* Top row */}
                 <div className="flex items-start justify-between gap-3">
@@ -135,8 +135,8 @@ export default function StatementsList({ items }: Props) {
                 </div>
               </a>
 
-              {/* Delete button — positioned top-right, outside the link */}
-              <div className="absolute top-3 right-10 sm:right-12">
+              {/* Delete button — flex sibling, aligned to top */}
+              <div className="flex items-start px-3 pt-4">
                 <DeleteButton id={item.id} />
               </div>
             </li>

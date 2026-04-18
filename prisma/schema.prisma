@@ -38,3 +38,16 @@ model Transaction {
   amount          Decimal?
   bank            String?
 }
+
+model BankCard {
+  id         String   @id @default(uuid())
+  userId     String
+  bank       String
+  cardNumber String?
+  cardType   String
+  password   String?
+  nickname   String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+}

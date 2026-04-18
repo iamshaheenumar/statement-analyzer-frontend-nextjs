@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
 import {
   Upload,
@@ -13,6 +13,7 @@ import {
   Shield,
   Zap,
   Building2,
+  CheckCircle2,
 } from "lucide-react";
 
 type FormValues = {
@@ -24,13 +25,35 @@ type Props = {
   onSubmit: (data: FormValues) => Promise<void>;
   isLoading: boolean;
   error: string | null;
+  autoPassword?: string;
+  autoPasswordNote?: string;
+  onFileReady?: (file: File, cardNumber: string | null) => void;
 };
 
-export default function UploadForm({ onSubmit, isLoading, error }: Props) {
+function extractCardNumber(filename: string): string | null {
+  const m = filename.match(/(\d{4,8}[Xx*]+\d{4})/);
+  return m ? m[1].toUpperCase() : null;
+}
+
+export default function UploadForm({
+  onSubmit,
+  isLoading,
+  error,
+  autoPassword,
+  autoPasswordNote,
+  onFileReady,
+}: Props) {
   const [file, setFile] = useState<File | null>(null);
   const [password, setPassword] = useState("");
+  const [passwordManuallyEdited, setPasswordManuallyEdited] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isPasswordProtected, setIsPasswordProtected] = useState(false);
+
+  useEffect(() => {
+    if (autoPassword && !passwordManuallyEdited) {
+      setPassword(autoPassword);
+    }
+  }, [autoPassword, passwordManuallyEdited]);
 
   const checkFilePassword = async (f: File) => {
     try {
@@ -42,14 +65,19 @@ export default function UploadForm({ onSubmit, isLoading, error }: Props) {
     }
   };
 
+  const handleFile = async (f: File) => {
+    setFile(f);
+    setPassword("");
+    setPasswordManuallyEdited(false);
+    setIsPasswordProtected(false);
+    const cardNumber = extractCardNumber(f.name);
+    onFileReady?.(f, cardNumber);
+    await checkFilePassword(f);
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
-    if (selected) {
-      setFile(selected);
-      setPassword("");
-      setIsPasswordProtected(false);
-      await checkFilePassword(selected);
-    }
+    if (selected) await handleFile(selected);
   };
 
   const handleDrop = async (e: React.DragEvent) => {
@@ -57,10 +85,7 @@ export default function UploadForm({ onSubmit, isLoading, error }: Props) {
     setIsDragging(false);
     const dropped = e.dataTransfer.files[0];
     if (dropped?.type === "application/pdf") {
-      setFile(dropped);
-      setPassword("");
-      setIsPasswordProtected(false);
-      await checkFilePassword(dropped);
+      await handleFile(dropped);
     } else {
       toast.error("Please drop a PDF file");
     }
@@ -78,6 +103,7 @@ export default function UploadForm({ onSubmit, isLoading, error }: Props) {
     e.stopPropagation();
     setFile(null);
     setPassword("");
+    setPasswordManuallyEdited(false);
     setIsPasswordProtected(false);
   };
 
@@ -153,16 +179,27 @@ export default function UploadForm({ onSubmit, isLoading, error }: Props) {
           {/* Password field */}
           {file && isPasswordProtected && (
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Password <span className="text-red-500">*</span>
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-slate-700">
+                  Password <span className="text-red-500">*</span>
+                </label>
+                {autoPasswordNote && !passwordManuallyEdited && (
+                  <span className="flex items-center gap-1 text-xs text-emerald-600 font-medium">
+                    <CheckCircle2 className="w-3 h-3" />
+                    Auto-filled from {autoPasswordNote}
+                  </span>
+                )}
+              </div>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                 <input
                   type="password"
                   placeholder="Enter PDF password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setPasswordManuallyEdited(true);
+                  }}
                   required
                   className="w-full pl-9 pr-4 py-2.5 text-sm border border-slate-200 rounded-lg bg-white placeholder:text-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
                 />
