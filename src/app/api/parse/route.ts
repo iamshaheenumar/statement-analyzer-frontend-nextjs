@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { parseStatement } from '@/lib/parsers';
+import { parseStatement, BUILTIN_PARSERS } from '@/lib/parsers';
+import { detectBankFromText } from '@/lib/pdf/detectBank';
 import type { PageContent } from '@/lib/pdf/types';
+import type { ParserConfigData } from '@/lib/parsers/configParser';
+import prisma from '@/services/prisma';
 
 export const runtime = 'nodejs';
 
@@ -9,16 +12,6 @@ interface ParseRequestBody {
   bank?: string;
 }
 
-/**
- * POST /api/parse
- *
- * Accepts pre-extracted PDF page content (produced by the browser-side
- * extractPdfPages()) and returns a structured ParseResult.
- *
- * Body: application/json
- *   pages  { page: number; lines: string[] }[]  required
- *   bank   string                               optional override
- */
 export async function POST(request: NextRequest) {
   let body: ParseRequestBody;
   try {
@@ -31,15 +24,35 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'pages array is required' }, { status: 400 });
   }
 
-  // Reconstruct PageContent[] — add the pre-joined text string each parser may need.
   const pages: PageContent[] = body.pages.map(p => ({
     page: p.page,
     lines: p.lines,
     text: p.lines.join('\n'),
   }));
 
+  const allLines = pages.flatMap(p => p.lines);
+  const bank = body.bank ?? detectBankFromText(allLines);
+
+  // Look up a user-created parser config if no builtin matches
+  let dbConfig: ParserConfigData | null = null;
+  if (!BUILTIN_PARSERS[bank]) {
+    try {
+      const allConfigs = await prisma.parserConfig.findMany({
+        where: { active: true },
+        orderBy: { createdAt: 'desc' },
+      });
+      const textLower = allLines.join(' ').toLowerCase();
+      const match = allConfigs.find(c =>
+        (c.keywords as string[]).some(k => textLower.includes(k.toLowerCase()))
+      );
+      if (match) dbConfig = match.config as ParserConfigData;
+    } catch {
+      // DB unavailable — continue without config
+    }
+  }
+
   try {
-    const result = parseStatement(pages, body.bank);
+    const result = parseStatement(pages, body.bank, dbConfig);
     return NextResponse.json(result);
   } catch (err) {
     console.error('[POST /api/parse]', err);

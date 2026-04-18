@@ -1,5 +1,5 @@
 import type { PageContent, ParseResult, Transaction } from '../pdf/types';
-import { normalizeDate, normalizeTransactions, summarizeTransactions } from '../pdf/utils';
+import { normalizeDate, normalizeTransactions, summarizeTransactions, detectCurrency } from '../pdf/utils';
 
 const BANK_NAME = 'ENBD';
 const CARD_TYPE = 'debit' as const;
@@ -158,13 +158,16 @@ export function parseEnbd(pages: PageContent[]): ParseResult {
       ),
   );
 
-  const normalized = normalizeTransactions(clean, BANK_NAME, CARD_TYPE);
+  const allText = pages.map(p => p.text).join('\n');
+  const currency = detectCurrency(allText);
+  const normalized = normalizeTransactions(clean, BANK_NAME, CARD_TYPE, currency);
   return {
     bank: BANK_NAME,
     card_type: CARD_TYPE,
+    currency,
     from_date: statementFrom,
     to_date: statementTo,
-    summary: summarizeTransactions(normalized),
+    summary: summarizeTransactions(normalized, currency),
     transactions: normalized,
   };
 }

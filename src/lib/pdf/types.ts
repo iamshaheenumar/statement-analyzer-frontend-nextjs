@@ -6,8 +6,9 @@ export interface Transaction {
   amount: number;
   bank: string;
   card_type: 'credit' | 'debit';
+  currency: string;   // settlement currency (e.g. 'AED', 'INR')
   balance?: number;
-  fx_currency?: string;
+  fx_currency?: string;  // original spend currency if different
   fx_amount?: number;
   fx_rate?: number;
 }
@@ -17,11 +18,13 @@ export interface StatementSummary {
   total_debit: number;
   total_credit: number;
   net_change: number;
+  currency: string;
 }
 
 export interface ParseResult {
   bank: string;
   card_type: 'credit' | 'debit';
+  currency: string;   // base/settlement currency of the statement
   from_date: string | null;
   to_date: string | null;
   summary: StatementSummary;

@@ -16,6 +16,7 @@ async function getStatements(userId: string) {
         bank: s.bank,
         created_at: s.createdAt,
         card_type: s.card_type,
+        currency: s.currency,
         from_date: s.from_date,
         to_date: s.to_date,
         summary: {

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Calendar, CreditCard } from "lucide-react";
+import { ArrowLeft, Calendar, CreditCard, Sparkles } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import SaveToCloudButton from "./SaveToCloudButton";
 import type { ParsedDataWithId } from "@/features/dashboard/types";
@@ -10,6 +10,7 @@ type Props = {
   fromDate?: string | null;
   toDate?: string | null;
   cardType?: string | null;
+  parsedBy?: string | null;
   parsedData?: ParsedDataWithId | null;
   onBack?: () => void;
   saving?: boolean;
@@ -31,6 +32,7 @@ export default function ParsedHeader({
   fromDate,
   toDate,
   cardType,
+  parsedBy,
   parsedData,
   onBack,
 }: Props) {
@@ -68,6 +70,12 @@ export default function ParsedHeader({
           <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full capitalize">
             <CreditCard className="w-3.5 h-3.5" />
             {cardType}
+          </span>
+        )}
+        {parsedBy === "ai" && (
+          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-600 bg-violet-50 border border-violet-100 px-2.5 py-1 rounded-full">
+            <Sparkles className="w-3.5 h-3.5" />
+            Parsed with AI
           </span>
         )}
         {parsedData && <SaveToCloudButton parsedData={parsedData} />}

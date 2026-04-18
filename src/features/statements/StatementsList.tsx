@@ -9,6 +9,7 @@ type StatementItem = {
   bank: string;
   created_at: string | Date;
   card_type?: string | null;
+  currency?: string | null;
   from_date: Date | null;
   to_date: Date | null;
   summary: {
@@ -59,7 +60,7 @@ export default function StatementsList({ items }: Props) {
           { label: "Transactions", value: totalTx.toString() },
           {
             label: "Net Change",
-            value: `AED ${fmt(items.reduce((s, i) => s + i.summary.net_change, 0))}`,
+            value: `${items[0]?.currency || "AED"} ${fmt(items.reduce((s, i) => s + i.summary.net_change, 0))}`,
           },
         ].map(({ label, value }) => (
           <div key={label} className="bg-white border border-slate-200 rounded-xl shadow-sm px-4 py-3">
@@ -112,13 +113,13 @@ export default function StatementsList({ items }: Props) {
                   <div>
                     <p className="text-[11px] text-slate-400">Debit</p>
                     <p className="text-xs font-semibold text-red-600 tabular-nums">
-                      AED {fmt(item.summary.total_debit)}
+                      {item.currency || "AED"} {fmt(item.summary.total_debit)}
                     </p>
                   </div>
                   <div>
                     <p className="text-[11px] text-slate-400">Credit</p>
                     <p className="text-xs font-semibold text-green-600 tabular-nums">
-                      AED {fmt(item.summary.total_credit)}
+                      {item.currency || "AED"} {fmt(item.summary.total_credit)}
                     </p>
                   </div>
                   <div>
@@ -129,7 +130,7 @@ export default function StatementsList({ items }: Props) {
                       }`}
                     >
                       {item.summary.net_change >= 0 ? "+" : ""}
-                      AED {fmt(item.summary.net_change)}
+                      {item.currency || "AED"} {fmt(item.summary.net_change)}
                     </p>
                   </div>
                 </div>

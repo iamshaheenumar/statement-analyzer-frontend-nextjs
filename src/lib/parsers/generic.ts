@@ -1,5 +1,5 @@
 import type { PageContent, ParseResult } from '../pdf/types';
-import { normalizeDate, normalizeTransactions, summarizeTransactions } from '../pdf/utils';
+import { normalizeDate, normalizeTransactions, summarizeTransactions, detectCurrency } from '../pdf/utils';
 
 const BANK_NAME = 'unknown';
 const CARD_TYPE = 'debit' as const;
@@ -21,13 +21,16 @@ export function parseGeneric(pages: PageContent[]): ParseResult {
       amount: 0,
     }));
 
-  const normalized = normalizeTransactions(transactions, BANK_NAME, CARD_TYPE);
+  const allText = pages.map(p => p.text).join('\n');
+  const currency = detectCurrency(allText);
+  const normalized = normalizeTransactions(transactions, BANK_NAME, CARD_TYPE, currency);
   return {
     bank: BANK_NAME,
     card_type: CARD_TYPE,
+    currency,
     from_date: null,
     to_date: null,
-    summary: summarizeTransactions(normalized),
+    summary: summarizeTransactions(normalized, currency),
     transactions: normalized,
   };
 }

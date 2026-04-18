@@ -6,10 +6,13 @@ import { parseEmiratesIslamic } from './emiratesislamic';
 import { parseRakbank } from './rakbank';
 import { parseCbd } from './cbd';
 import { parseGeneric } from './generic';
+import { parseWithConfig, type ParserConfigData } from './configParser';
+
+export type { ParserConfigData };
 
 type Parser = (pages: PageContent[]) => ParseResult;
 
-const PARSERS: Record<string, Parser> = {
+export const BUILTIN_PARSERS: Record<string, Parser> = {
   mashreq: parseMashreq,
   enbd: parseEnbd,
   emiratesislamic: parseEmiratesIslamic,
@@ -17,13 +20,25 @@ const PARSERS: Record<string, Parser> = {
   cbd: parseCbd,
 };
 
+export type ParseResultWithMeta = ParseResult & { parsedBy: 'builtin' | 'config' | 'generic' };
+
 /**
- * Detect the bank from the extracted pages and dispatch to the correct parser.
- * Pass `bankOverride` (e.g. from a form field) to skip auto-detection.
+ * Detect the bank and dispatch to the correct parser.
+ * Pass `dbConfig` when a user-created config matches — checked by the API route.
  */
-export function parseStatement(pages: PageContent[], bankOverride?: string): ParseResult {
+export function parseStatement(
+  pages: PageContent[],
+  bankOverride?: string,
+  dbConfig?: ParserConfigData | null,
+): ParseResultWithMeta {
   const allLines = pages.flatMap(p => p.lines);
   const bank = bankOverride ?? detectBankFromText(allLines);
-  const parser: Parser = PARSERS[bank] ?? parseGeneric;
-  return parser(pages);
+
+  if (BUILTIN_PARSERS[bank]) {
+    return { ...BUILTIN_PARSERS[bank](pages), parsedBy: 'builtin' };
+  }
+  if (dbConfig) {
+    return { ...parseWithConfig(pages, dbConfig), parsedBy: 'config' };
+  }
+  return { ...parseGeneric(pages), parsedBy: 'generic' };
 }

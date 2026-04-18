@@ -7,7 +7,6 @@ import type { ParsedDataWithId, Transaction } from "@/features/dashboard/types";
 import TransactionsTable from "./components/TransactionsTable";
 import SimpleSearch from "./components/SimpleSearch";
 import ParsedHeader from "./components/ParsedHeader";
-import ConfirmModal from "@/features/dashboard/ConfirmModal";
 
 type Props = { id?: string };
 
@@ -16,8 +15,6 @@ export default function ViewParsed({ id }: Props) {
   const { parsedList, loading, updateParsed } = useParsedStorage();
   const [parsedData, setParsedData] = useState<ParsedDataWithId | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [pendingTx, setPendingTx] = useState<Transaction | null>(null);
 
   const parsed = useMemo(() => parsedList.find((p) => p.id === id), [parsedList, id]);
 
@@ -34,19 +31,17 @@ export default function ViewParsed({ id }: Props) {
     if (!parsedData) return [] as Transaction[];
     const term = searchTerm.trim().toLowerCase();
     if (!term) return parsedData.transactions;
-    return parsedData.transactions.filter((t) =>
-      (t.description || "").toLowerCase().includes(term)
-    );
+    return parsedData.transactions.filter((t) => {
+      const desc = (t.description || "").toLowerCase();
+      const date = (t.transaction_date ? String(t.transaction_date) : "").toLowerCase();
+      const debit = t.debit ? String(t.debit) : "";
+      const credit = t.credit ? String(t.credit) : "";
+      return desc.includes(term) || date.includes(term) || debit.includes(term) || credit.includes(term);
+    });
   }, [parsedData, searchTerm]);
 
-  const handleRemoveTransaction = (tx: Transaction) => {
-    setPendingTx(tx);
-    setConfirmOpen(true);
-  };
-
-  const confirmRemove = async () => {
-    if (!parsedData || !pendingTx) return;
-    const tx = pendingTx;
+  const handleRemoveTransaction = async (tx: Transaction) => {
+    if (!parsedData) return;
 
     let index = parsedData.transactions.indexOf(tx);
     if (index === -1) {
@@ -60,11 +55,7 @@ export default function ViewParsed({ id }: Props) {
           t.bank === tx.bank
       );
     }
-    if (index === -1) {
-      setConfirmOpen(false);
-      setPendingTx(null);
-      return;
-    }
+    if (index === -1) return;
 
     const nextTransactions = parsedData.transactions.filter((_, i) => i !== index);
     const totals = nextTransactions.reduce(
@@ -85,8 +76,6 @@ export default function ViewParsed({ id }: Props) {
       },
     });
     if (updated) setParsedData(updated);
-    setConfirmOpen(false);
-    setPendingTx(null);
   };
 
   return (
@@ -96,6 +85,7 @@ export default function ViewParsed({ id }: Props) {
         fromDate={parsedData?.from_date?.toString()}
         toDate={parsedData?.to_date?.toString()}
         cardType={parsedData?.card_type}
+        parsedBy={parsedData?.parsedBy}
         parsedData={parsedData}
         onBack={() => router.back()}
       />
@@ -106,20 +96,12 @@ export default function ViewParsed({ id }: Props) {
         transactions={filtered}
         searchTerm={searchTerm}
         onRemove={handleRemoveTransaction}
+        bank={parsedData?.bank}
+        fromDate={parsedData?.from_date?.toString()}
+        toDate={parsedData?.to_date?.toString()}
+        currency={parsedData?.currency || parsedData?.summary?.currency || "AED"}
       />
 
-      <ConfirmModal
-        open={confirmOpen}
-        title="Remove Transaction"
-        description="Remove this transaction? Totals will be recalculated."
-        confirmText="Remove"
-        cancelText="Cancel"
-        onConfirm={confirmRemove}
-        onCancel={() => {
-          setConfirmOpen(false);
-          setPendingTx(null);
-        }}
-      />
     </main>
   );
 }

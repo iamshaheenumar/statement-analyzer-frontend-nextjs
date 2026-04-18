@@ -15,6 +15,7 @@ model Statement {
   from_date   DateTime?
   to_date     DateTime?
   card_type   String?
+  currency    String    @default("AED")
   recordCount Int
   totalDebit  Decimal
   totalCredit Decimal
@@ -48,6 +49,19 @@ model BankCard {
   password   String?
   nickname   String?
   createdAt  DateTime @default(now())
+
+  @@index([userId])
+}
+
+model ParserConfig {
+  id        String   @id @default(uuid())
+  userId    String?
+  bank      String
+  keywords  String[]
+  config    Json
+  source    String   @default("ai")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
 
   @@index([userId])
 }

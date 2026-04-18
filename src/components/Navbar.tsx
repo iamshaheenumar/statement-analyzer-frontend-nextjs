@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BarChart2, LayoutDashboard, ClipboardList, Upload, LogOut, LogIn, CreditCard } from "lucide-react";
+import { BarChart2, LayoutDashboard, ClipboardList, Upload, LogOut, LogIn, CreditCard, Sparkles, Building2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -11,10 +11,13 @@ const AUTHED_LINKS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/statements", label: "Statements", icon: ClipboardList },
   { href: "/cards", label: "Cards", icon: CreditCard },
+  { href: "/parsers", label: "Parsers", icon: Sparkles },
+  { href: "/banks", label: "Banks", icon: Building2 },
   { href: "/upload", label: "Upload", icon: Upload },
 ];
 
 const GUEST_LINKS = [
+  { href: "/banks", label: "Banks", icon: Building2 },
   { href: "/upload", label: "Upload", icon: Upload },
 ];
 

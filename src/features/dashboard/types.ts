@@ -5,6 +5,10 @@ export type BaseTransaction = {
   credit: number | null;
   amount: number | null;
   bank: string | null;
+  currency?: string | null;
+  fx_currency?: string | null;
+  fx_amount?: number | null;
+  fx_rate?: number | null;
 };
 
 export type Transaction = BaseTransaction;
@@ -15,11 +19,13 @@ export type StatementSummary = {
   total_debit: number;
   total_credit: number;
   net_change: number;
+  currency?: string;
 };
 
 export type BaseStatement = {
   bank: string;
   card_type?: string | null;
+  currency?: string | null;
   from_date: Date | null;
   to_date: Date | null;
 };
@@ -33,6 +39,7 @@ export type Statement = BaseStatement & {
 export type ParsedData = BaseStatement & {
   summary: StatementSummary;
   transactions: Transaction[];
+  parsedBy?: 'builtin' | 'config' | 'generic' | 'ai';
 };
 
 export type ParsedDataWithId = ParsedData & { id: string };

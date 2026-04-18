@@ -18,13 +18,14 @@ export async function saveStatementAction(data: ParsedData) {
 
     if (!data) throw new Error("Empty body");
 
-    const { id, bank, summary, transactions, from_date, to_date, card_type } = data;
+    const { id, bank, summary, transactions, from_date, to_date, card_type, currency } = data;
 
     if (!bank || !summary || !Array.isArray(transactions)) {
       throw new Error("Invalid payload");
     }
 
     const statementId = id || crypto.randomUUID();
+    const settlementCurrency = currency || summary.currency || 'AED';
 
     await prisma.$transaction(async (tx) => {
       await tx.statement.upsert({
@@ -34,6 +35,7 @@ export async function saveStatementAction(data: ParsedData) {
           from_date: from_date ? new Date(from_date) : null,
           to_date: to_date ? new Date(to_date) : null,
           card_type: card_type || null,
+          currency: settlementCurrency,
           recordCount: summary.record_count,
           totalDebit: summary.total_debit,
           totalCredit: summary.total_credit,
@@ -46,6 +48,7 @@ export async function saveStatementAction(data: ParsedData) {
           from_date: from_date ? new Date(from_date) : null,
           to_date: to_date ? new Date(to_date) : null,
           card_type: card_type || null,
+          currency: settlementCurrency,
           recordCount: summary.record_count,
           totalDebit: summary.total_debit,
           totalCredit: summary.total_credit,

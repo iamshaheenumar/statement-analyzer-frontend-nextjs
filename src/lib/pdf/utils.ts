@@ -95,11 +95,12 @@ export function normalizeDate(rawDate: string, fmt?: string): string {
   return '';
 }
 
-/** Stamp every transaction with its bank and card_type, filling missing fields. */
+/** Stamp every transaction with its bank, card_type, and settlement currency. */
 export function normalizeTransactions(
   transactions: Partial<Transaction>[],
   bank: string,
   cardType: 'credit' | 'debit',
+  currency = 'AED',
 ): Transaction[] {
   return transactions.map(tx => ({
     transaction_date: tx.transaction_date ?? '',
@@ -109,6 +110,7 @@ export function normalizeTransactions(
     amount: tx.amount ?? 0,
     bank,
     card_type: cardType,
+    currency: tx.currency ?? currency,
     ...(tx.balance !== undefined && { balance: tx.balance }),
     ...(tx.fx_currency !== undefined && { fx_currency: tx.fx_currency }),
     ...(tx.fx_amount !== undefined && { fx_amount: tx.fx_amount }),
@@ -116,7 +118,7 @@ export function normalizeTransactions(
   }));
 }
 
-export function summarizeTransactions(transactions: Transaction[]): StatementSummary {
+export function summarizeTransactions(transactions: Transaction[], currency = 'AED'): StatementSummary {
   const total_debit = transactions.reduce((s, t) => s + t.debit, 0);
   const total_credit = transactions.reduce((s, t) => s + t.credit, 0);
   return {
@@ -124,5 +126,27 @@ export function summarizeTransactions(transactions: Transaction[]): StatementSum
     total_debit: Math.round(total_debit * 100) / 100,
     total_credit: Math.round(total_credit * 100) / 100,
     net_change: Math.round((total_credit - total_debit) * 100) / 100,
+    currency,
   };
+}
+
+/**
+ * Detect the base currency from raw statement text.
+ * Looks for explicit "Currency: XXX" patterns. Defaults to 'AED'.
+ */
+export function detectCurrency(allText: string): string {
+  const patterns = [
+    /account\s+currency\s*:?\s*([A-Z]{3})\b/i,
+    /statement\s+currency\s*:?\s*([A-Z]{3})\b/i,
+    /billing\s+currency\s*:?\s*([A-Z]{3})\b/i,
+    /currency\s*:?\s*([A-Z]{3})\b/i,
+  ];
+  for (const p of patterns) {
+    const m = allText.match(p);
+    if (m?.[1]) {
+      const c = m[1].toUpperCase();
+      if (!['THE', 'FOR', 'AND', 'ARE', 'NOT'].includes(c)) return c;
+    }
+  }
+  return 'AED';
 }
