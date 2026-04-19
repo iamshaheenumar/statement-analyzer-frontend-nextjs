@@ -58,13 +58,15 @@ export default function UploadPage() {
   const [autoPassword, setAutoPassword] = useState("");
   const [autoPasswordNote, setAutoPasswordNote] = useState("");
 
-  useEffect(() => {
+  const refreshCards = async () => {
     const supabase = createSupabaseBrowserClient();
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) return;
-      getCardsAction().then((cards) => setSavedCards(cards as SavedCard[]));
-    });
-  }, []);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    const cards = await getCardsAction();
+    setSavedCards(cards as SavedCard[]);
+  };
+
+  useEffect(() => { refreshCards(); }, []);
 
   const handleFileReady = (_file: File, cardNumber: string | null) => {
     setAutoPassword("");
@@ -178,6 +180,7 @@ export default function UploadPage() {
   const handleSaveCardDone = () => {
     if (stage.type !== "save_card") return;
     const id = stage.pending.parsedId;
+    refreshCards(); // keep local list in sync so next upload won't re-prompt
     setStage({ type: "idle" });
     router.push(`/view-parsed?id=${id}`);
   };

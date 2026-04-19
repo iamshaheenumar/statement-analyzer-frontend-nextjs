@@ -9,6 +9,7 @@ type Props = {
   bank?: string;
   fromDate?: string | null;
   toDate?: string | null;
+  dueDate?: string | null;
   cardType?: string | null;
   parsedBy?: string | null;
   parsedData?: ParsedDataWithId | null;
@@ -31,6 +32,7 @@ export default function ParsedHeader({
   bank,
   fromDate,
   toDate,
+  dueDate,
   cardType,
   parsedBy,
   parsedData,
@@ -38,6 +40,7 @@ export default function ParsedHeader({
 }: Props) {
   const from = fmt(fromDate);
   const to = fmt(toDate);
+  const due = fmt(dueDate);
 
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -62,8 +65,18 @@ export default function ParsedHeader({
       <div className="flex flex-wrap items-center gap-2">
         {(from || to) && (
           <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full">
-            <Calendar className="w-3.5 h-3.5" />
-            {from || "—"} – {to || "—"}
+            <Calendar className="w-3.5 h-3.5 text-slate-400" />
+            <span className="text-slate-400">From</span>
+            {from || "—"}
+            <span className="text-slate-400">to</span>
+            {to || "—"}
+          </span>
+        )}
+        {due && (
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-100 px-2.5 py-1 rounded-full">
+            <Calendar className="w-3.5 h-3.5 text-amber-400" />
+            <span className="text-amber-400">Due</span>
+            {due}
           </span>
         )}
         {cardType && (

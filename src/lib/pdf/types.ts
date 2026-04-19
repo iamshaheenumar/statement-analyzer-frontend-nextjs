@@ -27,6 +27,7 @@ export interface ParseResult {
   currency: string;   // base/settlement currency of the statement
   from_date: string | null;
   to_date: string | null;
+  due_date?: string | null;
   summary: StatementSummary;
   transactions: Transaction[];
 }

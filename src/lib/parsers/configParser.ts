@@ -18,21 +18,25 @@ export type ParserConfigData = {
   creditFlag?: string;
   periodFrom?: string;
   periodTo?: string;
+  dueDatePattern?: string;
 };
 
 export function parseWithConfig(pages: PageContent[], config: ParserConfigData): ParseResult {
   const transactions = [];
   let statementFrom: string | null = null;
   let statementTo: string | null = null;
+  let statementDueDate: string | null = null;
 
   let rowRegex: RegExp;
   let fromRegex: RegExp | null = null;
   let toRegex: RegExp | null = null;
+  let dueDateRegex: RegExp | null = null;
 
   try {
     rowRegex = new RegExp(config.rowPattern);
     if (config.periodFrom) fromRegex = new RegExp(config.periodFrom);
     if (config.periodTo) toRegex = new RegExp(config.periodTo);
+    if (config.dueDatePattern) dueDateRegex = new RegExp(config.dueDatePattern);
   } catch {
     const fallbackCurrency = config.currency || 'AED';
     return {
@@ -55,6 +59,10 @@ export function parseWithConfig(pages: PageContent[], config: ParserConfigData):
       if (toRegex && !statementTo) {
         const m = line.match(toRegex);
         if (m?.[1]) statementTo = normalizeDate(m[1], config.dateFormat) || m[1];
+      }
+      if (dueDateRegex && !statementDueDate) {
+        const m = line.match(dueDateRegex);
+        if (m?.[1]) statementDueDate = normalizeDate(m[1], config.dateFormat) || m[1];
       }
 
       const m = line.match(rowRegex);
@@ -88,6 +96,7 @@ export function parseWithConfig(pages: PageContent[], config: ParserConfigData):
     currency,
     from_date: statementFrom,
     to_date: statementTo,
+    due_date: statementDueDate,
     summary: summarizeTransactions(normalized, currency),
     transactions: normalized,
   };

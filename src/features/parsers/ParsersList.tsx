@@ -14,6 +14,7 @@ type ParserItem = {
   config: unknown;
   source: string;
   active: boolean;
+  status: string;
   createdAt: Date | string;
 };
 
@@ -67,16 +68,26 @@ function ParserRow({ item }: { item: ParserItem }) {
         </div>
 
         <div className="flex items-center gap-3 mt-2.5">
-          <button
-            onClick={handleToggle}
-            disabled={isPending}
-            className={`flex items-center gap-1.5 text-xs transition-colors ${
-              active ? "text-emerald-600" : "text-slate-400"
-            }`}
-          >
-            {active ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
-            {active ? "Active" : "Inactive"}
-          </button>
+          {item.status === "pending" ? (
+            <span className="flex items-center gap-1 text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+              Pending approval
+            </span>
+          ) : item.status === "rejected" ? (
+            <span className="flex items-center gap-1 text-xs font-medium text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
+              Rejected
+            </span>
+          ) : (
+            <button
+              onClick={handleToggle}
+              disabled={isPending}
+              className={`flex items-center gap-1.5 text-xs transition-colors ${
+                active ? "text-emerald-600" : "text-slate-400"
+              }`}
+            >
+              {active ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
+              {active ? "Active" : "Inactive"}
+            </button>
+          )}
           {config.dateFormat && (
             <span className="text-xs text-slate-300">Format: {config.dateFormat}</span>
           )}

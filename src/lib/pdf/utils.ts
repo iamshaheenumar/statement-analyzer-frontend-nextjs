@@ -75,10 +75,19 @@ export function normalizeDate(rawDate: string, fmt?: string): string {
     re: RegExp;
     parse(m: RegExpMatchArray): { d: number; mo: number; y: number } | null;
   }> = [
+    // slash-separated
     { re: /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/, parse: m => ({ d: +m[1], mo: +m[2], y: +m[3] }) },
     { re: /^(\d{1,2})\/(\d{1,2})\/(\d{2})$/, parse: m => ({ d: +m[1], mo: +m[2], y: 2000 + +m[3] }) },
     { re: /^(\d{1,2})\/(\d{1,2})$/, parse: m => ({ d: +m[1], mo: +m[2], y: currentYear }) },
+    // dash-separated DD-MM-YYYY
+    { re: /^(\d{1,2})-(\d{1,2})-(\d{4})$/, parse: m => ({ d: +m[1], mo: +m[2], y: +m[3] }) },
+    { re: /^(\d{1,2})-(\d{1,2})-(\d{2})$/, parse: m => ({ d: +m[1], mo: +m[2], y: 2000 + +m[3] }) },
+    // YYYY/MM/DD or YYYY-MM-DD (already handled by ISO check, but as safety net)
+    { re: /^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/, parse: m => ({ d: +m[3], mo: +m[2], y: +m[1] }) },
+    // month name
     { re: /^(\d{1,2}) ([A-Z]+) (\d{4})$/, parse: m => MONTHS[m[2]] ? { d: +m[1], mo: MONTHS[m[2]], y: +m[3] } : null },
+    { re: /^(\d{1,2})-([A-Z]+)-(\d{4})$/, parse: m => MONTHS[m[2]] ? { d: +m[1], mo: MONTHS[m[2]], y: +m[3] } : null },
+    { re: /^(\d{1,2})-([A-Z]+)-(\d{2})$/, parse: m => MONTHS[m[2]] ? { d: +m[1], mo: MONTHS[m[2]], y: 2000 + +m[3] } : null },
     { re: /^(\d{1,2}) ([A-Z]+)$/, parse: m => MONTHS[m[2]] ? { d: +m[1], mo: MONTHS[m[2]], y: currentYear } : null },
     { re: /^(\d{1,2})([A-Z]+)(\d{2})$/, parse: m => MONTHS[m[2]] ? { d: +m[1], mo: MONTHS[m[2]], y: 2000 + +m[3] } : null },
     { re: /^(\d{1,2})([A-Z]+)(\d{4})$/, parse: m => MONTHS[m[2]] ? { d: +m[1], mo: MONTHS[m[2]], y: +m[3] } : null },
@@ -95,6 +104,12 @@ export function normalizeDate(rawDate: string, fmt?: string): string {
   return '';
 }
 
+function ensureIsoDate(d: string | undefined | null): string {
+  if (!d) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d; // already ISO
+  return normalizeDate(d) || d;
+}
+
 /** Stamp every transaction with its bank, card_type, and settlement currency. */
 export function normalizeTransactions(
   transactions: Partial<Transaction>[],
@@ -103,7 +118,7 @@ export function normalizeTransactions(
   currency = 'AED',
 ): Transaction[] {
   return transactions.map(tx => ({
-    transaction_date: tx.transaction_date ?? '',
+    transaction_date: ensureIsoDate(tx.transaction_date),
     description: tx.description ?? '',
     debit: tx.debit ?? 0,
     credit: tx.credit ?? 0,

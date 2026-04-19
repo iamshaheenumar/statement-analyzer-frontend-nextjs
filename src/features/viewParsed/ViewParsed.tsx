@@ -84,6 +84,7 @@ export default function ViewParsed({ id }: Props) {
         bank={parsedData?.bank || ""}
         fromDate={parsedData?.from_date?.toString()}
         toDate={parsedData?.to_date?.toString()}
+        dueDate={parsedData?.due_date?.toString()}
         cardType={parsedData?.card_type}
         parsedBy={parsedData?.parsedBy}
         parsedData={parsedData}

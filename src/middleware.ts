@@ -5,6 +5,23 @@ import type { NextRequest } from "next/server";
 const PROTECTED_ROUTES = ["/dashboard", "/statements", "/view-saved"];
 
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Admin route protection — simple cookie comparison (internal tool)
+  if (pathname.startsWith("/admin")) {
+    if (pathname === "/admin/login") {
+      return NextResponse.next({ request });
+    }
+    const adminSecret = process.env.ADMIN_SECRET;
+    const adminCookie = request.cookies.get("admin_session")?.value;
+    if (!adminSecret || adminCookie !== adminSecret) {
+      const loginUrl = request.nextUrl.clone();
+      loginUrl.pathname = "/admin/login";
+      return NextResponse.redirect(loginUrl);
+    }
+    return NextResponse.next({ request });
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   // Required by @supabase/ssr: refresh the session cookie on every request.
@@ -33,7 +50,6 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { pathname } = request.nextUrl;
   const isProtected = PROTECTED_ROUTES.some((r) => pathname.startsWith(r));
 
   // Unauthenticated user hitting a protected route → send to login

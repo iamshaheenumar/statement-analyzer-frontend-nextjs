@@ -28,6 +28,7 @@ export type BaseStatement = {
   currency?: string | null;
   from_date: Date | null;
   to_date: Date | null;
+  due_date?: Date | string | null;
 };
 
 export type Statement = BaseStatement & {
@@ -39,7 +40,7 @@ export type Statement = BaseStatement & {
 export type ParsedData = BaseStatement & {
   summary: StatementSummary;
   transactions: Transaction[];
-  parsedBy?: 'builtin' | 'config' | 'generic' | 'ai';
+  parsedBy?: 'config' | 'generic' | 'ai';
 };
 
 export type ParsedDataWithId = ParsedData & { id: string };

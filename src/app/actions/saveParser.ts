@@ -21,7 +21,8 @@ export async function saveParserAction(data: {
       keywords: data.keywords,
       config: data.config as any,
       source: "ai",
-      active: true,
+      active: false,
+      status: "pending",
     },
   });
 

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { parseStatement, BUILTIN_PARSERS } from '@/lib/parsers';
-import { detectBankFromText } from '@/lib/pdf/detectBank';
+import { parseStatement } from '@/lib/parsers';
 import type { PageContent } from '@/lib/pdf/types';
 import type { ParserConfigData } from '@/lib/parsers/configParser';
 import prisma from '@/services/prisma';
@@ -9,7 +8,6 @@ export const runtime = 'nodejs';
 
 interface ParseRequestBody {
   pages: { page: number; lines: string[] }[];
-  bank?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -31,28 +29,25 @@ export async function POST(request: NextRequest) {
   }));
 
   const allLines = pages.flatMap(p => p.lines);
-  const bank = body.bank ?? detectBankFromText(allLines);
+  const textLower = allLines.join(' ').toLowerCase();
 
-  // Look up a user-created parser config if no builtin matches
+  // Find the first approved & active config whose keywords match the statement text
   let dbConfig: ParserConfigData | null = null;
-  if (!BUILTIN_PARSERS[bank]) {
-    try {
-      const allConfigs = await prisma.parserConfig.findMany({
-        where: { active: true },
-        orderBy: { createdAt: 'desc' },
-      });
-      const textLower = allLines.join(' ').toLowerCase();
-      const match = allConfigs.find(c =>
-        (c.keywords as string[]).some(k => textLower.includes(k.toLowerCase()))
-      );
-      if (match) dbConfig = match.config as ParserConfigData;
-    } catch {
-      // DB unavailable — continue without config
-    }
+  try {
+    const configs = await prisma.parserConfig.findMany({
+      where: { active: true, status: 'approved' },
+      orderBy: { createdAt: 'desc' },
+    });
+    const match = configs.find(c =>
+      (c.keywords as string[]).some(k => textLower.includes(k.toLowerCase()))
+    );
+    if (match) dbConfig = match.config as ParserConfigData;
+  } catch {
+    // DB unavailable — fall through to generic
   }
 
   try {
-    const result = parseStatement(pages, body.bank, dbConfig);
+    const result = parseStatement(pages, dbConfig);
     return NextResponse.json(result);
   } catch (err) {
     console.error('[POST /api/parse]', err);

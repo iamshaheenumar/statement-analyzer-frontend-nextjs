@@ -61,7 +61,13 @@ model ParserConfig {
   config    Json
   source    String   @default("ai")
   active    Boolean  @default(true)
+  status    String   @default("pending")
   createdAt DateTime @default(now())
 
   @@index([userId])
+}
+
+model AdminSetting {
+  key   String @id
+  value Json
 }

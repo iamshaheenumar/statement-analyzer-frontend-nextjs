@@ -1,59 +1,21 @@
 import { getUser } from "@/lib/supabase/server";
 import prisma from "@/services/prisma";
 import Navbar from "@/components/Navbar";
-import { CheckCircle2, Sparkles, AlertCircle, CreditCard, Building2 } from "lucide-react";
+import { CheckCircle2, Sparkles, CreditCard, Building2 } from "lucide-react";
 import type { ParserConfigData } from "@/lib/parsers/configParser";
 
 type BankInfo = {
   key: string;
   name: string;
   keywords: string[];
-  cards: { type: "credit" | "debit"; supported: boolean }[];
-  source: "builtin" | "ai";
+  cardType: string;
+  source: "admin" | "ai";
 };
 
-const BUILTIN_BANKS: BankInfo[] = [
-  {
-    key: "mashreq",
-    name: "Mashreq",
-    keywords: ["mashreq", "mashreqbank"],
-    cards: [{ type: "credit", supported: true }, { type: "debit", supported: false }],
-    source: "builtin",
-  },
-  {
-    key: "enbd",
-    name: "Emirates NBD",
-    keywords: ["emirates nbd", "dubai bank"],
-    cards: [{ type: "credit", supported: false }, { type: "debit", supported: true }],
-    source: "builtin",
-  },
-  {
-    key: "emiratesislamic",
-    name: "Emirates Islamic",
-    keywords: ["emirates islamic"],
-    cards: [{ type: "credit", supported: true }, { type: "debit", supported: false }],
-    source: "builtin",
-  },
-  {
-    key: "rakbank",
-    name: "RAKBank",
-    keywords: ["rakbank", "national bank of ras al khaimah"],
-    cards: [{ type: "credit", supported: true }, { type: "debit", supported: false }],
-    source: "builtin",
-  },
-  {
-    key: "cbd",
-    name: "Commercial Bank of Dubai (CBD)",
-    keywords: ["commercial bank of dubai", "cbd"],
-    cards: [{ type: "credit", supported: true }, { type: "debit", supported: false }],
-    source: "builtin",
-  },
-];
-
-async function getAiBanks(userId: string): Promise<BankInfo[]> {
+async function getApprovedBanks(): Promise<BankInfo[]> {
   try {
     const rows = await prisma.parserConfig.findMany({
-      where: { userId, active: true },
+      where: { active: true, status: "approved" },
       orderBy: { createdAt: "desc" },
     });
     return rows.map((r) => {
@@ -62,36 +24,13 @@ async function getAiBanks(userId: string): Promise<BankInfo[]> {
         key: r.id,
         name: r.bank,
         keywords: r.keywords as string[],
-        cards: [{ type: config.cardType, supported: true }],
-        source: "ai" as const,
+        cardType: config.cardType ?? "credit",
+        source: (r.source === "admin" ? "admin" : "ai") as "admin" | "ai",
       };
     });
   } catch {
     return [];
   }
-}
-
-function CardTypeBadge({ type, supported }: { type: string; supported: boolean }) {
-  if (!supported) {
-    return (
-      <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-slate-50 text-slate-300 border border-slate-100">
-        <AlertCircle className="w-3 h-3" />
-        {type}
-      </span>
-    );
-  }
-  return (
-    <span
-      className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
-        type === "credit"
-          ? "bg-purple-50 text-purple-600 border border-purple-100"
-          : "bg-emerald-50 text-emerald-600 border border-emerald-100"
-      }`}
-    >
-      <CheckCircle2 className="w-3 h-3" />
-      {type}
-    </span>
-  );
 }
 
 function BankRow({ bank }: { bank: BankInfo }) {
@@ -113,21 +52,30 @@ function BankRow({ bank }: { bank: BankInfo }) {
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <p className="text-sm font-semibold text-slate-800">{bank.name}</p>
-              {bank.source === "ai" && (
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-600 uppercase tracking-wide">
-                  AI
-                </span>
-              )}
+              <span
+                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide ${
+                  bank.source === "ai"
+                    ? "bg-violet-50 text-violet-600"
+                    : "bg-blue-50 text-blue-600"
+                }`}
+              >
+                {bank.source === "ai" ? "AI" : "Admin"}
+              </span>
             </div>
             <p className="text-xs text-slate-400 mt-0.5">{bank.keywords.join(", ")}</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          {bank.cards.map((c) => (
-            <CardTypeBadge key={c.type} type={c.type} supported={c.supported} />
-          ))}
-        </div>
+        <span
+          className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
+            bank.cardType === "credit"
+              ? "bg-purple-50 text-purple-600 border border-purple-100"
+              : "bg-emerald-50 text-emerald-600 border border-emerald-100"
+          }`}
+        >
+          <CheckCircle2 className="w-3 h-3" />
+          {bank.cardType}
+        </span>
       </div>
     </li>
   );
@@ -135,11 +83,10 @@ function BankRow({ bank }: { bank: BankInfo }) {
 
 export default async function BanksPage() {
   const user = await getUser();
-  const aiBanks = user ? await getAiBanks(user.id) : [];
-  const allBanks = [...BUILTIN_BANKS, ...aiBanks];
+  const banks = await getApprovedBanks();
 
-  const builtinCount = BUILTIN_BANKS.length;
-  const aiCount = aiBanks.length;
+  const adminBanks = banks.filter((b) => b.source === "admin");
+  const aiBanks = banks.filter((b) => b.source === "ai");
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -148,16 +95,16 @@ export default async function BanksPage() {
         <div className="mb-7">
           <h1 className="text-xl font-bold text-slate-900 tracking-tight">Supported Banks</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            Built-in parsers plus any AI-generated parsers you&apos;ve created.
+            All parsers are managed by the admin and stored in the database.
           </p>
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
           {[
-            { label: "Total Banks", value: allBanks.length },
-            { label: "Built-in", value: builtinCount },
-            { label: "AI-created", value: aiCount },
+            { label: "Total Banks", value: banks.length },
+            { label: "Admin-created", value: adminBanks.length },
+            { label: "AI-created", value: aiBanks.length },
           ].map(({ label, value }) => (
             <div key={label} className="bg-white border border-slate-200 rounded-xl shadow-sm px-4 py-3">
               <p className="text-xs text-slate-400 uppercase tracking-wide font-medium">{label}</p>
@@ -166,42 +113,35 @@ export default async function BanksPage() {
           ))}
         </div>
 
-        {/* Column legend */}
-        <div className="flex items-center gap-4 mb-3 px-1">
-          <span className="flex items-center gap-1.5 text-xs text-slate-500">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-            Supported
-          </span>
-          <span className="flex items-center gap-1.5 text-xs text-slate-400">
-            <AlertCircle className="w-3.5 h-3.5 text-slate-300" />
-            Not supported
-          </span>
-          <span className="flex items-center gap-1.5 text-xs text-violet-500">
-            <Sparkles className="w-3.5 h-3.5" />
-            AI-generated
-          </span>
-        </div>
-
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
           {/* Header row */}
           <div className="px-4 sm:px-5 py-2.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Bank</p>
-            <div className="flex items-center gap-6 pr-1">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1">
-                <CreditCard className="w-3 h-3" />
-                Card Types
-              </p>
-            </div>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1">
+              <CreditCard className="w-3 h-3" />
+              Card Type
+            </p>
           </div>
 
-          <ul className="divide-y divide-slate-100">
-            {allBanks.map((bank) => (
-              <BankRow key={bank.key} bank={bank} />
-            ))}
-          </ul>
+          {banks.length === 0 ? (
+            <div className="px-5 py-12 text-center">
+              <p className="text-sm text-slate-400">No approved parsers yet.</p>
+              {user && (
+                <p className="text-xs text-slate-400 mt-2">
+                  Upload a statement and use AI to add a bank, or ask an admin to create one.
+                </p>
+              )}
+            </div>
+          ) : (
+            <ul className="divide-y divide-slate-100">
+              {banks.map((bank) => (
+                <BankRow key={bank.key} bank={bank} />
+              ))}
+            </ul>
+          )}
         </div>
 
-        {user && (
+        {user && banks.length > 0 && (
           <p className="text-xs text-slate-400 mt-4 text-center">
             Don&apos;t see your bank?{" "}
             <a href="/upload" className="text-violet-600 hover:underline font-medium">
