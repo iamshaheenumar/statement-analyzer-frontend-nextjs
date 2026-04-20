@@ -28,19 +28,21 @@ export async function POST(request: NextRequest) {
     text: p.lines.join('\n'),
   }));
 
-  const allLines = pages.flatMap(p => p.lines);
-  const textLower = allLines.join(' ').toLowerCase();
-
-  // Find the first approved & active config whose keywords match the statement text
+  // Find the first approved & active config whose keywords ALL match (AND) the statement text
   let dbConfig: ParserConfigData | null = null;
   try {
     const configs = await prisma.parserConfig.findMany({
       where: { active: true, status: 'approved' },
       orderBy: { createdAt: 'desc' },
     });
-    const match = configs.find(c =>
-      (c.keywords as string[]).some(k => textLower.includes(k.toLowerCase()))
-    );
+    const match = configs.find(c => {
+      const cfg = c.config as ParserConfigData;
+      const scopedPages = cfg.keywordsPage != null
+        ? pages.filter(p => p.page === cfg.keywordsPage)
+        : pages;
+      const textLower = scopedPages.flatMap(p => p.lines).join(' ').toLowerCase();
+      return (c.keywords as string[]).every(k => textLower.includes(k.toLowerCase()));
+    });
     if (match) dbConfig = match.config as ParserConfigData;
   } catch {
     // DB unavailable — fall through to generic

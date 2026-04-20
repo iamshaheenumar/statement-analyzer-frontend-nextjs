@@ -6,6 +6,7 @@ export type ParserConfigData = {
   cardType: 'credit' | 'debit';
   currency?: string;
   keywords: string[];
+  keywordsPage?: number;
   rowPattern: string;
   groups: {
     date: number;

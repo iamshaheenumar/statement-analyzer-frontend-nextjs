@@ -33,22 +33,28 @@ export async function rejectParserAction(id: string) {
 export async function updateParserRulesAction(
   id: string,
   creditKeywords: string[],
-  creditFlag: string
+  creditFlag: string,
+  keywordsPage: number | undefined,
+  detectionKeywords: string[]
 ) {
   await requireAdmin();
   const existing = await prisma.parserConfig.findUnique({ where: { id } });
   if (!existing) throw new Error("Parser not found");
 
-  const currentConfig = existing.config as Record<string, unknown>;
-  const updatedConfig = {
-    ...currentConfig,
+  const updatedConfig: Record<string, unknown> = {
+    ...(existing.config as Record<string, unknown>),
     creditKeywords,
     creditFlag,
   };
+  if (keywordsPage !== undefined) {
+    updatedConfig.keywordsPage = keywordsPage;
+  } else {
+    delete updatedConfig.keywordsPage;
+  }
 
   await prisma.parserConfig.update({
     where: { id },
-    data: { config: updatedConfig },
+    data: { config: updatedConfig as any, keywords: detectionKeywords },
   });
   revalidatePath("/admin/parsers");
   revalidatePath("/parsers");
@@ -67,6 +73,27 @@ export async function toggleParserActiveAction(id: string, active: boolean) {
 export async function deleteParserAdminAction(id: string) {
   await requireAdmin();
   await prisma.parserConfig.delete({ where: { id } });
+  revalidatePath("/admin/parsers");
+  revalidatePath("/parsers");
+}
+
+export async function updateParserConfigAction(
+  id: string,
+  config: ParserConfigData,
+  keywords: string[]
+) {
+  await requireAdmin();
+  const existing = await prisma.parserConfig.findUnique({ where: { id } });
+  if (!existing) throw new Error("Parser not found");
+
+  await prisma.parserConfig.update({
+    where: { id },
+    data: {
+      bank: config.bankName,
+      keywords,
+      config: config as any,
+    },
+  });
   revalidatePath("/admin/parsers");
   revalidatePath("/parsers");
 }

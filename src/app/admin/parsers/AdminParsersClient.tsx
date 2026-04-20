@@ -12,6 +12,7 @@ import {
   Trash2,
   Loader2,
   Bot,
+  Pencil,
 } from "lucide-react";
 import {
   approveParserAction,
@@ -21,6 +22,7 @@ import {
   deleteParserAdminAction,
 } from "@/app/actions/admin";
 import CreateParserWizard from "./CreateParserWizard";
+import UpdateParserWizard from "./UpdateParserWizard";
 
 interface ParserRow {
   id: string;
@@ -134,26 +136,35 @@ function ActiveParserCard({
 }: {
   parser: ParserRow;
   onToggleActive: (id: string, active: boolean) => void;
-  onUpdateRules: (id: string, creditKeywords: string[], creditFlag: string) => void;
+  onUpdateRules: (id: string, creditKeywords: string[], creditFlag: string, keywordsPage: number | undefined, detectionKeywords: string[]) => void;
   onDelete: (id: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [showUpdateWizard, setShowUpdateWizard] = useState(false);
   const [toggling, startToggle] = useTransition();
   const [saving, startSave] = useTransition();
   const [deleting, startDelete] = useTransition();
 
-  const existingKeywords = (parser.config.creditKeywords as string[] | undefined) ?? [];
+  const existingCreditKeywords = (parser.config.creditKeywords as string[] | undefined) ?? [];
   const existingFlag = (parser.config.creditFlag as string | undefined) ?? "";
+  const existingKeywordsPage = (parser.config.keywordsPage as number | undefined);
 
-  const [creditKeywordsText, setCreditKeywordsText] = useState(existingKeywords.join(", "));
+  const [detectionKeywordsText, setDetectionKeywordsText] = useState(parser.keywords.join(", "));
+  const [creditKeywordsText, setCreditKeywordsText] = useState(existingCreditKeywords.join(", "));
   const [creditFlag, setCreditFlag] = useState(existingFlag);
+  const [keywordsPageMode, setKeywordsPageMode] = useState<"any" | "page1">(
+    existingKeywordsPage === 1 ? "page1" : "any"
+  );
 
   function handleSaveRules() {
-    const keywords = creditKeywordsText.split(",").map((k) => k.trim()).filter(Boolean);
-    startSave(() => onUpdateRules(parser.id, keywords, creditFlag));
+    const detection = detectionKeywordsText.split(",").map((k) => k.trim()).filter(Boolean);
+    const credit = creditKeywordsText.split(",").map((k) => k.trim()).filter(Boolean);
+    const kp = keywordsPageMode === "page1" ? 1 : undefined;
+    startSave(() => onUpdateRules(parser.id, credit, creditFlag, kp, detection));
   }
 
   return (
+    <>
     <div className="border border-border rounded-2xl bg-surface shadow-surface overflow-hidden">
       <div className="p-4">
         <div className="flex items-start justify-between gap-3">
@@ -196,6 +207,13 @@ function ActiveParserCard({
               {parser.active ? "Active" : "Inactive"}
             </button>
             <button
+              onClick={() => setShowUpdateWizard((v) => !v)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-warning-muted text-warning hover:bg-warning/10 border border-warning/20 rounded-lg transition-colors"
+              title="Update parser from new statement"
+            >
+              <Pencil className="w-3.5 h-3.5" /> Update
+            </button>
+            <button
               onClick={() => startDelete(() => onDelete(parser.id))}
               disabled={deleting}
               className="p-1.5 text-text-muted hover:text-danger hover:bg-danger-muted rounded-lg transition-colors"
@@ -214,6 +232,17 @@ function ActiveParserCard({
 
       {expanded && (
         <div className="border-t border-border bg-base px-4 py-4 space-y-4">
+          <div>
+            <p className="text-xs font-semibold text-text-secondary mb-1.5">Detection Keywords</p>
+            <textarea
+              value={detectionKeywordsText}
+              onChange={(e) => setDetectionKeywordsText(e.target.value)}
+              placeholder="commercial bank of dubai, cbd.ae, statement of account"
+              rows={2}
+              className="w-full px-3 py-2 text-xs text-text-primary border border-border rounded-lg bg-surface placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent resize-none"
+            />
+            <p className="text-xs text-text-muted mt-1">Comma-separated. ALL keywords must appear in the PDF (AND logic) to select this parser.</p>
+          </div>
           <div>
             <p className="text-xs font-semibold text-text-secondary mb-1.5">Credit Keywords</p>
             <textarea
@@ -236,6 +265,27 @@ function ActiveParserCard({
             />
             <p className="text-xs text-text-muted mt-1">Token in the amount column that flags a credit row (e.g. &quot;CR&quot;).</p>
           </div>
+          <div>
+            <p className="text-xs font-semibold text-text-secondary mb-1.5">Keyword Search Scope</p>
+            <div className="flex gap-2">
+              {(["any", "page1"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => setKeywordsPageMode(mode)}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
+                    keywordsPageMode === mode
+                      ? "bg-accent text-black border-accent"
+                      : "bg-elevated text-text-muted border-border hover:text-text-secondary"
+                  }`}
+                >
+                  {mode === "any" ? "Any page" : "Page 1 only"}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-text-muted mt-1">
+              &ldquo;Page 1 only&rdquo; restricts keyword matching to the cover page — useful when the bank name only appears in the header.
+            </p>
+          </div>
           <button
             onClick={handleSaveRules}
             disabled={saving}
@@ -247,6 +297,12 @@ function ActiveParserCard({
         </div>
       )}
     </div>
+    {showUpdateWizard && (
+      <div className="mt-3">
+        <UpdateParserWizard parser={parser} onClose={() => setShowUpdateWizard(false)} />
+      </div>
+    )}
+  </>
   );
 }
 
@@ -274,8 +330,8 @@ export default function AdminParsersClient({ parsers }: Props) {
     } catch { toast.error("Failed to update parser."); }
   }
 
-  async function handleUpdateRules(id: string, creditKeywords: string[], creditFlag: string) {
-    try { await updateParserRulesAction(id, creditKeywords, creditFlag); toast.success("Rules saved."); }
+  async function handleUpdateRules(id: string, creditKeywords: string[], creditFlag: string, keywordsPage: number | undefined, detectionKeywords: string[]) {
+    try { await updateParserRulesAction(id, creditKeywords, creditFlag, keywordsPage, detectionKeywords); toast.success("Rules saved."); }
     catch { toast.error("Failed to save rules."); }
   }
 

@@ -190,13 +190,15 @@ function UploadStep({
 
 function BankStep({
   analysis, bankName, setBankName, cardType, setCardType,
-  currency, setCurrency, keywords, setKeywords, onBack, onNext,
+  currency, setCurrency, keywords, setKeywords,
+  keywordsPageMode, setKeywordsPageMode, onBack, onNext,
 }: {
   analysis: GuidedAnalysis;
   bankName: string; setBankName: (v: string) => void;
   cardType: 'credit' | 'debit'; setCardType: (v: 'credit' | 'debit') => void;
   currency: string; setCurrency: (v: string) => void;
   keywords: string; setKeywords: (v: string) => void;
+  keywordsPageMode: 'any' | 'page1'; setKeywordsPageMode: (v: 'any' | 'page1') => void;
   onBack: () => void; onNext: () => void;
 }) {
   return (
@@ -219,9 +221,27 @@ function BankStep({
             className={BASE} placeholder="AED" maxLength={3} />
         </Field>
       </div>
-      <Field label="Detection Keywords" hint="Comma-separated. Unique words/phrases from this bank's PDFs used to auto-match future uploads.">
+      <Field label="Detection Keywords" hint="Comma-separated. ALL keywords must be present in the PDF (AND logic). Use phrases unique to this bank.">
         <input value={keywords} onChange={(e) => setKeywords(e.target.value)}
-          className={BASE} placeholder="hdfc bank, credit card statement" />
+          className={BASE} placeholder="commercial bank of dubai, cbd.ae" />
+      </Field>
+      <Field label="Keyword Search Scope" hint='"Page 1 only" restricts matching to the cover page — recommended when the bank name only appears in the header.'>
+        <div className="flex gap-2 mt-1">
+          {(['any', 'page1'] as const).map(mode => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setKeywordsPageMode(mode)}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
+                keywordsPageMode === mode
+                  ? 'bg-accent text-black border-accent'
+                  : 'bg-elevated text-text-muted border-border hover:text-text-secondary'
+              }`}
+            >
+              {mode === 'any' ? 'Any page' : 'Page 1 only'}
+            </button>
+          ))}
+        </div>
       </Field>
       <SampleBox lines={analysis.identification.sampleLines} label="Lines containing these keywords" variant="match" />
       <NavButtons onBack={onBack} onNext={onNext} nextDisabled={!bankName.trim()} />
@@ -279,6 +299,7 @@ function DatesStep({
 
 function TransactionsStep({
   analysis,
+  pdfPages,
   rowPattern, setRowPattern,
   groupDate, setGroupDate, groupDesc, setGroupDesc,
   groupAmount, setGroupAmount, groupCreditFlag, setGroupCreditFlag,
@@ -286,6 +307,7 @@ function TransactionsStep({
   onBack, onNext,
 }: {
   analysis: GuidedAnalysis;
+  pdfPages: Array<{ page: number; lines: string[] }>;
   rowPattern: string; setRowPattern: (v: string) => void;
   groupDate: string; setGroupDate: (v: string) => void;
   groupDesc: string; setGroupDesc: (v: string) => void;
@@ -300,16 +322,26 @@ function TransactionsStep({
   ];
 
   let regexError = '';
+  let re: RegExp | null = null;
+  try { re = new RegExp(rowPattern); } catch (e: any) { regexError = e.message; }
+
   const testResults = allSamples.map(({ line, expected }) => {
-    try {
-      const re = new RegExp(rowPattern);
-      const m = line.match(re);
-      return { line, matched: !!m, expected, groups: m ? Array.from(m).slice(1) : [] };
-    } catch (e: any) {
-      if (!regexError) regexError = e.message;
-      return { line, matched: false, expected, groups: [] };
-    }
+    if (!re) return { line, matched: false, expected, groups: [] };
+    const m = line.match(re);
+    return { line, matched: !!m, expected, groups: m ? Array.from(m).slice(1) : [] };
   });
+
+  const liveMatches: Array<{ line: string; groups: string[] }> = [];
+  if (re && pdfPages.length > 0) {
+    for (const { lines } of pdfPages) {
+      for (const line of lines) {
+        if (liveMatches.length >= 12) break;
+        const m = line.match(re);
+        if (m) liveMatches.push({ line, groups: Array.from(m).slice(1) });
+      }
+      if (liveMatches.length >= 12) break;
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -330,7 +362,7 @@ function TransactionsStep({
 
       {allSamples.length > 0 && (
         <div>
-          <p className="text-[11px] font-mono font-semibold text-text-muted uppercase tracking-widest mb-1.5">Live Pattern Test</p>
+          <p className="text-[11px] font-mono font-semibold text-text-muted uppercase tracking-widest mb-1.5">AI Sample Test</p>
           <div className="space-y-2">
             {testResults.map((r, i) => (
               <div key={i} className={`rounded-lg border px-3 py-2 ${
@@ -360,6 +392,39 @@ function TransactionsStep({
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {pdfPages.length > 0 && (
+        <div>
+          <p className="text-[11px] font-mono font-semibold text-text-muted uppercase tracking-widest mb-1.5">
+            Live matches from your PDF {liveMatches.length > 0 ? `(${liveMatches.length} shown)` : '— no matches yet'}
+          </p>
+          {liveMatches.length === 0 ? (
+            <p className="text-xs text-warning bg-warning-muted border border-warning/20 rounded-lg px-3 py-2">
+              Pattern does not match any lines in the uploaded PDF. Edit the regex above until you see matches here.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {liveMatches.map((r, i) => (
+                <div key={i} className="rounded-lg border bg-success-muted border-success/20 px-3 py-2">
+                  <div className="flex items-start gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-success mt-0.5 shrink-0" />
+                    <code className="text-xs font-mono text-text-secondary break-all">{r.line}</code>
+                  </div>
+                  {r.groups.length > 0 && (
+                    <div className="mt-1.5 ml-5 flex flex-wrap gap-1">
+                      {r.groups.map((g, gi) => (
+                        <span key={gi} className="text-xs bg-surface border border-success/20 rounded px-1.5 py-0.5 font-mono text-success">
+                          [{gi + 1}] {g || '—'}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -436,7 +501,6 @@ function PreviewStep({
   fromDate: string; toDate: string; dueDate: string;
   onBack: () => void; onSave: () => void; saving: boolean;
 }) {
-  const preview = analysis.transactions.slice(0, 10);
   return (
     <div className="space-y-4">
       <AiNote text="All steps complete. Review the summary and transaction preview, then save the parser." />
@@ -458,15 +522,16 @@ function PreviewStep({
         ))}
       </div>
 
-      {preview.length > 0 && (
+      {analysis.transactions.length > 0 && (
         <div>
           <p className="text-[11px] font-mono font-semibold text-text-muted uppercase tracking-widest mb-2">
-            First {preview.length} transactions
+            All {analysis.transactions.length} transactions
           </p>
-          <div className="overflow-x-auto rounded-lg border border-border">
+          <div className="overflow-x-auto rounded-lg border border-border max-h-96 overflow-y-auto">
             <table className="w-full text-xs">
-              <thead>
+              <thead className="sticky top-0">
                 <tr className="bg-base border-b border-border">
+                  <th className="text-left px-3 py-2 font-mono font-semibold text-text-muted whitespace-nowrap">#</th>
                   <th className="text-left px-3 py-2 font-mono font-semibold text-text-muted whitespace-nowrap">Date</th>
                   <th className="text-left px-3 py-2 font-mono font-semibold text-text-muted">Description</th>
                   <th className="text-right px-3 py-2 font-mono font-semibold text-text-muted">Debit</th>
@@ -474,8 +539,9 @@ function PreviewStep({
                 </tr>
               </thead>
               <tbody>
-                {preview.map((tx, i) => (
+                {analysis.transactions.map((tx, i) => (
                   <tr key={i} className="border-t border-border hover:bg-elevated">
+                    <td className="px-3 py-2 text-text-muted font-mono tabular-nums">{i + 1}</td>
                     <td className="px-3 py-2 text-text-secondary font-mono whitespace-nowrap">{tx.transaction_date}</td>
                     <td className="px-3 py-2 text-text-secondary max-w-[200px] truncate">{tx.description}</td>
                     <td className="px-3 py-2 text-right text-danger font-mono tabular-nums whitespace-nowrap">
@@ -489,11 +555,6 @@ function PreviewStep({
               </tbody>
             </table>
           </div>
-          {analysis.transactions.length > 10 && (
-            <p className="text-xs text-text-muted font-mono mt-1.5 text-center">
-              +{analysis.transactions.length - 10} more transactions
-            </p>
-          )}
         </div>
       )}
 
@@ -513,6 +574,7 @@ export default function CreateParserWizard({ onClose }: { onClose: () => void })
   const [cardType, setCardType] = useState<'credit' | 'debit'>('credit');
   const [currency, setCurrency] = useState('AED');
   const [keywords, setKeywords] = useState('');
+  const [keywordsPageMode, setKeywordsPageMode] = useState<'any' | 'page1'>('any');
 
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
@@ -531,6 +593,7 @@ export default function CreateParserWizard({ onClose }: { onClose: () => void })
   const [creditFlag, setCreditFlag] = useState('');
   const [creditKeywords, setCreditKeywords] = useState('');
 
+  const [pdfPages, setPdfPages] = useState<Array<{ page: number; lines: string[] }>>([]);
   const [saving, startSave] = useTransition();
 
   function populate(a: GuidedAnalysis) {
@@ -560,11 +623,12 @@ export default function CreateParserWizard({ onClose }: { onClose: () => void })
     setLoading(true);
     try {
       const { extractPdfPages } = await import('@/services/parsePDF');
-      const pages = await extractPdfPages(file, password || undefined);
+      const extractedPages = await extractPdfPages(file, password || undefined);
+      setPdfPages(extractedPages);
       const res = await fetch('/api/ai-parse-guided', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pages }),
+        body: JSON.stringify({ pages: extractedPages }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -593,6 +657,7 @@ export default function CreateParserWizard({ onClose }: { onClose: () => void })
       cardType,
       currency: currency || 'AED',
       keywords: keywords.split(',').map(k => k.trim()).filter(Boolean),
+      keywordsPage: keywordsPageMode === 'page1' ? 1 : undefined,
       rowPattern,
       groups: g,
       dateFormat,
@@ -657,6 +722,7 @@ export default function CreateParserWizard({ onClose }: { onClose: () => void })
             cardType={cardType} setCardType={setCardType}
             currency={currency} setCurrency={setCurrency}
             keywords={keywords} setKeywords={setKeywords}
+            keywordsPageMode={keywordsPageMode} setKeywordsPageMode={setKeywordsPageMode}
             onBack={goBack} onNext={goNext}
           />
         )}
@@ -675,6 +741,7 @@ export default function CreateParserWizard({ onClose }: { onClose: () => void })
         {step === 'transactions' && analysis && (
           <TransactionsStep
             analysis={analysis}
+            pdfPages={pdfPages}
             rowPattern={rowPattern} setRowPattern={setRowPattern}
             groupDate={groupDate} setGroupDate={setGroupDate}
             groupDesc={groupDesc} setGroupDesc={setGroupDesc}
