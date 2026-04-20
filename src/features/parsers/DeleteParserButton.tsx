@@ -31,7 +31,7 @@ export function DeleteParserButton({ id }: { id: string }) {
       disabled={isPending}
       title={confirm ? "Click again to confirm" : "Delete parser"}
       className={`p-1.5 rounded-lg transition-colors ${
-        confirm ? "bg-red-500 text-white" : "text-slate-300 hover:text-red-500 hover:bg-red-50"
+        confirm ? "bg-danger text-white" : "text-text-muted hover:text-danger hover:bg-danger-muted"
       } ${isPending ? "opacity-50 cursor-not-allowed" : ""}`}
     >
       <Trash2 className="w-3.5 h-3.5" />

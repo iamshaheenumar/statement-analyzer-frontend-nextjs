@@ -8,7 +8,6 @@ import {
 } from "@/features/dashboard/types";
 import SummaryCard from "@/features/dashboard/SummaryCard";
 import FilterCard from "@/features/dashboard/FilterCard";
-import TransactionsTable from "@/features/dashboard/TransactionsTable";
 import ParsedList from "@/features/dashboard/ParsedList";
 import { useParsedStorage } from "@/features/dashboard/useParsedStorage";
 import ConfirmModal from "@/features/dashboard/ConfirmModal";
@@ -23,6 +22,8 @@ import {
   ClipboardList,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import { pageVariants } from "@/lib/motion";
 
 type Props = {
   id?: string;
@@ -30,11 +31,9 @@ type Props = {
 
 export default function Dashboard(props: Props) {
   const router = useRouter();
-  const { parsedList, deleteParsed, updateParsed, loading } =
-    useParsedStorage();
+  const { parsedList, deleteParsed, updateParsed, loading } = useParsedStorage();
 
   const [parsedData, setParsedData] = useState<ParsedDataWithId | null>(null);
-  const [filtered, setFiltered] = useState<ParsedData["transactions"]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -47,37 +46,12 @@ export default function Dashboard(props: Props) {
 
   useEffect(() => {
     if (!parsed && parsedList.length > 0 && !id) {
-      // if no specific ID, load latest
       router.replace(`/view-parsed?id=${parsedList[parsedList.length - 1].id}`);
     }
-
     if (parsed) {
       setParsedData(parsed ?? null);
-      setFiltered(parsed?.transactions);
     }
   }, [parsed, parsedList, id]);
-
-  // Apply search + date filters
-  // useEffect(() => {
-  //   if (!parsedData) return;
-
-  //   const from = dateFrom ? new Date(dateFrom) : null;
-  //   const to = dateTo ? new Date(dateTo) : null;
-
-  //   const filteredTxns = parsedData.transactions.filter((t) => {
-  //     const dateObj = parseISO(t.transaction_date);
-  //     const matchesText = t.description
-  //       .toLowerCase()
-  //       .includes(searchTerm.toLowerCase());
-
-  //     const inRange =
-  //       (!from || (dateObj && dateObj >= from)) &&
-  //       (!to || (dateObj && dateObj <= to));
-  //     return matchesText && inRange;
-  //   });
-
-  //   setFiltered(filteredTxns);
-  // }, [searchTerm, dateFrom, dateTo, parsedData]);
 
   const { bank, summary } = parsedData || {
     bank: "",
@@ -89,10 +63,7 @@ export default function Dashboard(props: Props) {
     },
   };
 
-  const handleSelectParsed = (id: string) => {
-    router.push(`/view-parsed?id=${id}`);
-  };
-
+  const handleSelectParsed = (id: string) => router.push(`/view-parsed?id=${id}`);
   const handleDelete = (id: string) => deleteParsed(id);
 
   const handleRemoveTransaction = (tx: Transaction) => {
@@ -104,7 +75,6 @@ export default function Dashboard(props: Props) {
     if (!parsedData || !pendingTx) return;
     const tx = pendingTx;
 
-    // Try to find by reference first
     let index = parsedData.transactions.indexOf(tx);
     if (index === -1) {
       index = parsedData.transactions.findIndex(
@@ -124,9 +94,7 @@ export default function Dashboard(props: Props) {
       return;
     }
 
-    const nextTransactions = parsedData.transactions.filter(
-      (_, i) => i !== index
-    );
+    const nextTransactions = parsedData.transactions.filter((_, i) => i !== index);
     const totals = nextTransactions.reduce(
       (acc, t) => {
         acc.debit += Number(t.debit || 0);
@@ -135,16 +103,15 @@ export default function Dashboard(props: Props) {
       },
       { debit: 0, credit: 0 }
     );
-    const nextSummary = {
-      record_count: nextTransactions.length,
-      total_debit: totals.debit,
-      total_credit: totals.credit,
-      net_change: totals.credit - totals.debit,
-    };
 
     const updated = await updateParsed(parsedData.id, {
       transactions: nextTransactions,
-      summary: nextSummary,
+      summary: {
+        record_count: nextTransactions.length,
+        total_debit: totals.debit,
+        total_credit: totals.credit,
+        net_change: totals.credit - totals.debit,
+      },
     });
     if (updated) setParsedData(updated);
 
@@ -153,147 +120,98 @@ export default function Dashboard(props: Props) {
   };
 
   const handleSaveToCloud = async () => {
-    // if (!parsedData || saving) return;
-    // try {
-    //   setSaving(true);
-    //   const res = await fetch(`/api/save`, {
-    //     method: "POST",
-    //     headers: { "Content-Type": "application/json" },
-    //     body: JSON.stringify(parsedData),
-    //   });
-    //   let data: any = null;
-    //   try {
-    //     data = await res.json();
-    //   } catch {}
-    //   if (!res.ok || (data && data.error)) {
-    //     const msg = data?.error || `Save failed (${res.status})`;
-    //     throw new Error(msg);
-    //   }
-    //   toast.success("Saved to cloud successfully!");
-    // } catch (err: any) {
-    //   console.error(err);
-    //   toast.error(err?.message || "Failed to save to cloud");
-    // } finally {
-    //   setSaving(false);
-    // }
+    // Implemented via SaveToCloudButton in ViewParsed
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 py-8 px-4 sm:px-6 lg:px-8">
+    <motion.div
+      className="min-h-screen bg-base py-8 px-4 sm:px-6 lg:px-8"
+      variants={pageVariants}
+      initial="initial"
+      animate="animate"
+    >
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          {/* Glass Card Header */}
-          <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl border border-white/20 p-8">
+          <div className="bg-surface border border-border rounded-2xl shadow-surface p-6">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-              {/* Left Side - Title Section */}
+              {/* Left */}
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-3">
                   <button
                     onClick={() => router.push("/upload")}
-                    className="group flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 transition-all hover:scale-110 hover:shadow-md"
+                    className="flex items-center justify-center w-9 h-9 rounded-lg bg-elevated hover:bg-overlay text-text-secondary hover:text-text-primary transition-all"
                   >
-                    <ArrowLeft className="w-5 h-5 transition-transform group-hover:-translate-x-0.5" />
+                    <ArrowLeft className="w-4 h-4" />
                   </button>
-
-                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
-                    <Wallet className="w-5 h-5 text-white" />
+                  <div className="w-9 h-9 rounded-xl bg-accent-muted ring-1 ring-accent/20 flex items-center justify-center">
+                    <Wallet className="w-4 h-4 text-accent" />
                   </div>
                 </div>
-
-                <h1 className="text-2xl sm:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-gray-900 via-blue-900 to-purple-900 mb-2 leading-tight">
-                  {bank}
+                <h1 className="font-display text-2xl sm:text-3xl font-bold text-text-primary tracking-tight mb-2 leading-tight">
+                  {bank || "Statement"}
                 </h1>
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-700">
-                    Statement Dashboard
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold font-mono bg-accent-muted text-accent border border-accent/20">
+                    Dashboard
                   </span>
-                  <span className="text-xs sm:text-sm text-gray-500">
+                  <span className="text-xs font-mono text-text-muted">
                     {summary.record_count} transactions
                   </span>
                 </div>
               </div>
 
-              {/* Right Side - Action Buttons */}
-              {/* Desktop and up: full buttons with labels */}
+              {/* Action Buttons — Desktop */}
               <div className="hidden md:flex flex-col md:flex-row gap-3">
                 <button
                   onClick={handleSaveToCloud}
                   disabled={saving || !parsedData}
-                  aria-busy={saving}
-                  className="group relative overflow-hidden px-6 py-3.5 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-400 disabled:to-gray-500 text-white rounded-2xl font-semibold shadow-lg shadow-green-500/30 transition-all hover:shadow-2xl hover:shadow-green-500/50 hover:scale-105 disabled:shadow-none disabled:cursor-not-allowed"
+                  className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-all duration-150 bg-success/10 border border-success/30 text-success hover:bg-success/20 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
-                  <span className="relative flex items-center justify-center gap-2">
-                    <CloudUpload
-                      className={`w-5 h-5 transition-transform ${
-                        saving
-                          ? "animate-bounce"
-                          : "group-hover:-translate-y-1 group-hover:scale-110"
-                      }`}
-                    />
-                    {saving ? "Saving..." : "Save to Cloud"}
-                  </span>
+                  <CloudUpload className="w-4 h-4" />
+                  {saving ? "Saving..." : "Save to Cloud"}
                 </button>
 
                 <button
                   onClick={() => router.push("/upload")}
-                  className="group relative overflow-hidden px-6 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl font-semibold shadow-lg shadow-blue-500/30 transition-all hover:shadow-2xl hover:shadow-blue-500/50 hover:scale-105"
+                  className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-all duration-150 bg-accent-muted border border-accent/20 text-accent hover:bg-accent-muted/80"
                 >
-                  <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
-                  <span className="relative flex items-center justify-center gap-2">
-                    <Upload className="w-5 h-5" />
-                    Upload Another
-                  </span>
+                  <Upload className="w-4 h-4" />
+                  Upload Another
                 </button>
 
                 <button
                   onClick={() => router.push("/statements")}
-                  className="group relative overflow-hidden px-6 py-3.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-2xl font-semibold shadow-lg shadow-purple-500/30 transition-all hover:shadow-2xl hover:shadow-purple-500/50 hover:scale-105"
+                  className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-all duration-150 bg-elevated border border-border text-text-secondary hover:bg-overlay hover:text-text-primary"
                 >
-                  <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
-                  <span className="relative flex items-center justify-center gap-2">
-                    <ClipboardList className="w-5 h-5" />
-                    Saved Statements
-                  </span>
+                  <ClipboardList className="w-4 h-4" />
+                  Saved Statements
                 </button>
               </div>
 
-              {/* Mobile: compact icon-only buttons */}
-              <div className="flex md:hidden items-center gap-2 sm:gap-3">
+              {/* Action Buttons — Mobile */}
+              <div className="flex md:hidden items-center gap-2">
                 <button
                   onClick={handleSaveToCloud}
                   disabled={saving || !parsedData}
-                  aria-busy={saving}
                   title="Save to Cloud"
-                  className="group relative overflow-hidden w-10 h-10 sm:w-11 sm:h-11 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-400 disabled:to-gray-500 text-white rounded-full shadow-lg shadow-green-500/30 transition-all hover:shadow-2xl hover:shadow-green-500/50 hover:scale-105 disabled:shadow-none disabled:cursor-not-allowed flex items-center justify-center"
+                  className="w-10 h-10 rounded-xl flex items-center justify-center bg-success/10 border border-success/30 text-success hover:bg-success/20 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                 >
-                  <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 rounded-full"></div>
-                  <CloudUpload
-                    className={`w-5 h-5 relative ${
-                      saving
-                        ? "animate-bounce"
-                        : "group-hover:-translate-y-0.5 group-hover:scale-110"
-                    }`}
-                  />
+                  <CloudUpload className="w-4 h-4" />
                 </button>
-
                 <button
                   onClick={() => router.push("/upload")}
                   title="Upload Another"
-                  className="group relative overflow-hidden w-10 h-10 sm:w-11 sm:h-11 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-full shadow-lg shadow-blue-500/30 transition-all hover:shadow-2xl hover:shadow-blue-500/50 hover:scale-105 flex items-center justify-center"
+                  className="w-10 h-10 rounded-xl flex items-center justify-center bg-accent-muted border border-accent/20 text-accent hover:bg-accent-muted/80 transition-all"
                 >
-                  <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 rounded-full"></div>
-                  <Upload className="w-5 h-5 relative" />
+                  <Upload className="w-4 h-4" />
                 </button>
-
                 <button
                   onClick={() => router.push("/statements")}
                   title="Saved Statements"
-                  className="group relative overflow-hidden w-10 h-10 sm:w-11 sm:h-11 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-full shadow-lg shadow-purple-500/30 transition-all hover:shadow-2xl hover:shadow-purple-500/50 hover:scale-105 flex items-center justify-center"
+                  className="w-10 h-10 rounded-xl flex items-center justify-center bg-elevated border border-border text-text-secondary hover:bg-overlay transition-all"
                 >
-                  <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 rounded-full"></div>
-                  <ClipboardList className="w-5 h-5 relative" />
+                  <ClipboardList className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -301,31 +219,33 @@ export default function Dashboard(props: Props) {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 mb-8">
           <SummaryCard
             title="Total Transactions"
             value={summary.record_count}
-            icon={<ListOrdered className="text-blue-600 w-6 h-6" />}
+            icon={<ListOrdered className="text-accent w-5 h-5" />}
           />
           <SummaryCard
             title="Total Debit"
             value={`AED ${summary.total_debit.toFixed(2)}`}
-            icon={<TrendingDown className="text-red-600 w-6 h-6" />}
+            icon={<TrendingDown className="text-danger w-5 h-5" />}
+            highlight="red"
           />
           <SummaryCard
             title="Total Credit"
             value={`AED ${summary.total_credit.toFixed(2)}`}
-            icon={<TrendingUp className="text-green-600 w-6 h-6" />}
+            icon={<TrendingUp className="text-success w-5 h-5" />}
+            highlight="green"
           />
           <SummaryCard
             title="Net Change"
             value={`AED ${summary.net_change.toFixed(2)}`}
-            icon={<Wallet className="text-purple-600 w-6 h-6" />}
+            icon={<Wallet className="text-accent w-5 h-5" />}
             highlight={summary.net_change < 0 ? "red" : "green"}
           />
         </div>
 
-        {/* Search & Filter Card */}
+        {/* Filter Card */}
         <FilterCard
           searchTerm={searchTerm}
           setSearchTerm={setSearchTerm}
@@ -335,18 +255,10 @@ export default function Dashboard(props: Props) {
           setDateTo={setDateTo}
         />
 
-        {/* Transactions Table */}
-        {/* <TransactionsTable
-          transactions={filtered}
-          onRemove={handleRemoveTransaction}
-          dateFrom={dateFrom}
-          dateTo={dateTo}
-        /> */}
-
         <ConfirmModal
           open={confirmOpen}
           title="Remove Transaction"
-          description="Are you sure you want to remove this transaction from the table? This will update your totals."
+          description="Are you sure you want to remove this transaction? This will update your totals."
           confirmText="Remove"
           cancelText="Cancel"
           onConfirm={confirmRemove}
@@ -356,13 +268,12 @@ export default function Dashboard(props: Props) {
           }}
         />
 
-        {/* Recent Parsed Statements */}
         <ParsedList
           parsedList={parsedList}
           onSelect={handleSelectParsed}
           onDelete={handleDelete}
         />
       </div>
-    </div>
+    </motion.div>
   );
 }

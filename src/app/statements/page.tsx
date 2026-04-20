@@ -37,22 +37,24 @@ export default async function StatementsPage() {
   const { items, error } = await getStatements(user!.id);
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-base">
       <Navbar />
       <main className="max-w-4xl mx-auto px-4 py-8">
         <div className="mb-7">
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Saved Statements</h1>
-          <p className="text-sm text-slate-500 mt-0.5">
+          <h1 className="font-display text-xl font-bold text-text-primary tracking-tight">
+            Saved Statements
+          </h1>
+          <p className="text-sm text-text-secondary mt-0.5">
             Cloud-saved statements from your parsed PDFs
           </p>
         </div>
 
         {error && (
-          <div className="flex items-start gap-2.5 p-4 bg-red-50 border border-red-200 rounded-xl mb-6">
-            <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
+          <div className="flex items-start gap-2.5 p-4 bg-danger-muted border border-danger/30 rounded-xl mb-6">
+            <AlertCircle className="w-4 h-4 text-danger mt-0.5 shrink-0" />
             <div>
-              <p className="text-sm font-semibold text-red-700">Failed to load statements</p>
-              <p className="text-xs text-red-600 mt-0.5">{error}</p>
+              <p className="text-sm font-semibold text-danger">Failed to load statements</p>
+              <p className="text-xs text-danger/70 mt-0.5">{error}</p>
             </div>
           </div>
         )}

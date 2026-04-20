@@ -9,8 +9,6 @@ import {
 import { createAdminParserAction } from '@/app/actions/admin';
 import type { ParserConfigData } from '@/lib/parsers/configParser';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 interface GuidedAnalysis {
   bankName: string;
   cardType: 'credit' | 'debit';
@@ -45,8 +43,6 @@ const STEPS: { id: WizardStep; label: string }[] = [
   { id: 'preview', label: 'Preview & Save' },
 ];
 
-// ─── Shared primitives ────────────────────────────────────────────────────────
-
 function StepBar({ current }: { current: WizardStep }) {
   const ci = STEPS.findIndex(s => s.id === current);
   return (
@@ -54,15 +50,15 @@ function StepBar({ current }: { current: WizardStep }) {
       {STEPS.map((s, i) => (
         <div key={s.id} className="flex items-center shrink-0">
           <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-colors ${
-            i < ci ? 'bg-slate-800 text-white' :
-            i === ci ? 'bg-violet-600 text-white' :
-            'bg-slate-100 text-slate-400'
+            i < ci ? 'bg-elevated text-text-primary' :
+            i === ci ? 'bg-accent text-black' :
+            'bg-base text-text-muted border border-border'
           }`}>
             {i < ci ? <Check className="w-3 h-3" /> : <span>{i + 1}</span>}
             <span className="hidden sm:inline">{s.label}</span>
           </div>
           {i < STEPS.length - 1 && (
-            <div className={`w-4 h-px mx-1 shrink-0 ${i < ci ? 'bg-slate-800' : 'bg-slate-200'}`} />
+            <div className={`w-4 h-px mx-1 shrink-0 ${i < ci ? 'bg-elevated' : 'bg-border'}`} />
           )}
         </div>
       ))}
@@ -76,15 +72,15 @@ function SampleBox({ lines, label, variant = 'neutral' }: {
 }) {
   if (!lines.length) return null;
   const cls = {
-    neutral: 'bg-slate-50 border-slate-200 text-slate-700',
-    match: 'bg-green-50 border-green-200 text-green-800',
-    nomatch: 'bg-red-50 border-red-200 text-red-800',
-    credit: 'bg-emerald-50 border-emerald-200 text-emerald-800',
-    debit: 'bg-orange-50 border-orange-200 text-orange-800',
+    neutral: 'bg-base border-border text-text-secondary',
+    match: 'bg-success-muted border-success/20 text-success',
+    nomatch: 'bg-danger-muted border-danger/20 text-danger',
+    credit: 'bg-success-muted border-success/20 text-success',
+    debit: 'bg-warning-muted border-warning/20 text-warning',
   }[variant];
   return (
     <div>
-      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">{label}</p>
+      <p className="text-[11px] font-mono font-semibold text-text-muted uppercase tracking-widest mb-1.5">{label}</p>
       <div className="space-y-1">
         {lines.map((l, i) => (
           <code key={i} className={`block text-xs rounded px-2.5 py-1.5 overflow-x-auto whitespace-pre font-mono border ${cls}`}>{l}</code>
@@ -97,19 +93,19 @@ function SampleBox({ lines, label, variant = 'neutral' }: {
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="block text-xs font-semibold text-slate-700 mb-1">{label}</label>
+      <label className="block text-xs font-semibold text-text-secondary mb-1">{label}</label>
       {children}
-      {hint && <p className="text-xs text-slate-400 mt-1">{hint}</p>}
+      {hint && <p className="text-xs text-text-muted mt-1">{hint}</p>}
     </div>
   );
 }
 
-const BASE = 'w-full px-3 py-2 text-sm text-slate-900 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 placeholder:text-slate-400';
+const BASE = 'w-full px-3 py-2 text-sm text-text-primary border border-border rounded-lg bg-base focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent placeholder:text-text-muted transition';
 const MONO = BASE + ' font-mono';
 
 function AiNote({ text }: { text: string }) {
   return (
-    <p className="text-xs text-violet-700 bg-violet-50 border border-violet-100 rounded-lg px-3 py-2">{text}</p>
+    <p className="text-xs text-accent bg-accent-muted border border-accent/20 rounded-lg px-3 py-2">{text}</p>
   );
 }
 
@@ -120,11 +116,11 @@ function NavButtons({
   isLast?: boolean; onSave?: () => void; saving?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between pt-4 border-t border-slate-100 mt-6">
+    <div className="flex items-center justify-between pt-4 border-t border-border mt-6">
       <button
         onClick={onBack}
         disabled={!onBack}
-        className="flex items-center gap-1.5 px-4 py-2 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-30"
+        className="flex items-center gap-1.5 px-4 py-2 text-sm text-text-secondary hover:text-text-primary hover:bg-elevated rounded-lg transition-colors disabled:opacity-30"
       >
         <ChevronLeft className="w-4 h-4" /> Back
       </button>
@@ -132,7 +128,7 @@ function NavButtons({
         <button
           onClick={onSave}
           disabled={saving}
-          className="flex items-center gap-2 px-5 py-2 bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white text-sm font-semibold rounded-lg transition-colors"
+          className="flex items-center gap-2 px-5 py-2 bg-success hover:bg-success/90 disabled:bg-elevated disabled:text-text-muted text-black text-sm font-semibold rounded-lg transition-colors"
         >
           {saving && <Loader2 className="w-4 h-4 animate-spin" />}
           {saving ? 'Saving…' : 'Save Parser'}
@@ -141,7 +137,7 @@ function NavButtons({
         <button
           onClick={onNext}
           disabled={nextDisabled}
-          className="flex items-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 text-white text-sm font-semibold rounded-lg transition-colors"
+          className="flex items-center gap-1.5 px-4 py-2 bg-accent hover:bg-accent/90 disabled:bg-elevated disabled:text-text-muted text-black text-sm font-semibold rounded-lg transition-colors"
         >
           Next <ChevronRight className="w-4 h-4" />
         </button>
@@ -149,8 +145,6 @@ function NavButtons({
     </div>
   );
 }
-
-// ─── Step 1: Upload ───────────────────────────────────────────────────────────
 
 function UploadStep({
   file, setFile, password, setPassword, loading, onAnalyze,
@@ -161,13 +155,13 @@ function UploadStep({
 }) {
   return (
     <div className="space-y-4">
-      <p className="text-sm text-slate-600">
+      <p className="text-sm text-text-secondary">
         Upload a sample statement PDF. AI will analyze it and walk you through each detail — bank identity, dates, transaction pattern, and debit/credit rules — step by step.
       </p>
       <Field label="Bank Statement PDF">
-        <label className="flex items-center gap-2 px-4 py-3 border-2 border-dashed border-slate-200 rounded-xl hover:border-violet-400 hover:bg-violet-50/30 transition-colors cursor-pointer">
-          <Upload className="w-4 h-4 text-slate-400 shrink-0" />
-          <span className="text-sm text-slate-500 truncate">{file ? file.name : 'Click to select PDF'}</span>
+        <label className="flex items-center gap-2 px-4 py-3 border-2 border-dashed border-border hover:border-accent hover:bg-accent-muted/30 rounded-xl transition-colors cursor-pointer">
+          <Upload className="w-4 h-4 text-text-muted shrink-0" />
+          <span className="text-sm text-text-muted truncate">{file ? file.name : 'Click to select PDF'}</span>
           <input
             type="file" accept="application/pdf" className="hidden"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
@@ -185,7 +179,7 @@ function UploadStep({
       <button
         onClick={onAnalyze}
         disabled={!file || loading}
-        className="w-full flex items-center justify-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-700 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-semibold rounded-lg transition-colors"
+        className="w-full flex items-center justify-center gap-2 px-5 py-2.5 bg-accent hover:bg-accent/90 disabled:bg-elevated disabled:text-text-muted text-black text-sm font-semibold rounded-lg transition-colors shadow-[0_0_20px_#00d4ff33]"
       >
         {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bot className="w-4 h-4" />}
         {loading ? 'Analyzing statement with AI…' : 'Analyze with AI'}
@@ -193,8 +187,6 @@ function UploadStep({
     </div>
   );
 }
-
-// ─── Step 2: Bank Identity ────────────────────────────────────────────────────
 
 function BankStep({
   analysis, bankName, setBankName, cardType, setCardType,
@@ -236,8 +228,6 @@ function BankStep({
     </div>
   );
 }
-
-// ─── Step 3: Statement Dates ──────────────────────────────────────────────────
 
 function DatesStep({
   analysis,
@@ -287,8 +277,6 @@ function DatesStep({
   );
 }
 
-// ─── Step 4: Transaction Pattern ─────────────────────────────────────────────
-
 function TransactionsStep({
   analysis,
   rowPattern, setRowPattern,
@@ -334,37 +322,36 @@ function TransactionsStep({
           placeholder={`(\\d{2}/\\d{2}/\\d{4})\\s+(.+?)\\s+([\\d,.]+)\\s*(CR)?`}
         />
         {regexError && (
-          <p className="flex items-center gap-1 text-xs text-red-600 mt-1">
+          <p className="flex items-center gap-1 text-xs text-danger mt-1">
             <AlertCircle className="w-3 h-3" /> Invalid regex: {regexError}
           </p>
         )}
       </Field>
 
-      {/* Live regex tester */}
       {allSamples.length > 0 && (
         <div>
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Live Pattern Test</p>
+          <p className="text-[11px] font-mono font-semibold text-text-muted uppercase tracking-widest mb-1.5">Live Pattern Test</p>
           <div className="space-y-2">
             {testResults.map((r, i) => (
               <div key={i} className={`rounded-lg border px-3 py-2 ${
-                r.matched ? 'bg-green-50 border-green-200' : 'bg-slate-50 border-slate-200'
+                r.matched ? 'bg-success-muted border-success/20' : 'bg-base border-border'
               }`}>
                 <div className="flex items-start gap-2">
                   {r.matched
-                    ? <CheckCircle2 className="w-3.5 h-3.5 text-green-600 mt-0.5 shrink-0" />
-                    : <div className="w-3.5 h-3.5 rounded-full border-2 border-slate-300 mt-0.5 shrink-0" />
+                    ? <CheckCircle2 className="w-3.5 h-3.5 text-success mt-0.5 shrink-0" />
+                    : <div className="w-3.5 h-3.5 rounded-full border-2 border-border mt-0.5 shrink-0" />
                   }
                   <div className="min-w-0 flex-1">
-                    <code className="text-xs font-mono text-slate-700 break-all">{r.line}</code>
+                    <code className="text-xs font-mono text-text-secondary break-all">{r.line}</code>
                     {!r.expected && (
-                      <span className="ml-2 text-xs text-slate-400">(should not match)</span>
+                      <span className="ml-2 text-xs text-text-muted">(should not match)</span>
                     )}
                   </div>
                 </div>
                 {r.matched && r.groups.length > 0 && (
                   <div className="mt-1.5 ml-5 flex flex-wrap gap-1">
                     {r.groups.map((g, gi) => (
-                      <span key={gi} className="text-xs bg-white border border-green-200 rounded px-1.5 py-0.5 font-mono text-green-800">
+                      <span key={gi} className="text-xs bg-surface border border-success/20 rounded px-1.5 py-0.5 font-mono text-success">
                         [{gi + 1}] {g || '—'}
                       </span>
                     ))}
@@ -377,7 +364,7 @@ function TransactionsStep({
       )}
 
       <div>
-        <p className="text-xs font-semibold text-slate-700 mb-2">Group Assignments</p>
+        <p className="text-xs font-semibold text-text-secondary mb-2">Group Assignments</p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <Field label="Date — group #">
             <input type="number" min={1} value={groupDate}
@@ -409,8 +396,6 @@ function TransactionsStep({
   );
 }
 
-// ─── Step 5: Debit / Credit Rules ─────────────────────────────────────────────
-
 function RulesStep({
   analysis, creditFlag, setCreditFlag, creditKeywords, setCreditKeywords,
   onBack, onNext,
@@ -441,8 +426,6 @@ function RulesStep({
   );
 }
 
-// ─── Step 6: Preview & Save ───────────────────────────────────────────────────
-
 function PreviewStep({
   analysis, bankName, cardType, currency,
   fromDate, toDate, dueDate,
@@ -468,37 +451,37 @@ function PreviewStep({
           { label: 'Due Date', value: dueDate || '—' },
           { label: 'Transactions', value: String(analysis.transactions.length) },
         ].map(({ label, value }) => (
-          <div key={label} className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5">
-            <p className="text-xs text-slate-400 uppercase tracking-wide font-medium">{label}</p>
-            <p className="text-sm font-bold text-slate-800 mt-0.5 truncate">{value}</p>
+          <div key={label} className="bg-elevated border border-border rounded-xl px-3 py-2.5">
+            <p className="text-[11px] font-mono text-text-muted uppercase tracking-wide font-medium">{label}</p>
+            <p className="font-display text-sm font-bold text-text-primary mt-0.5 truncate">{value}</p>
           </div>
         ))}
       </div>
 
       {preview.length > 0 && (
         <div>
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+          <p className="text-[11px] font-mono font-semibold text-text-muted uppercase tracking-widest mb-2">
             First {preview.length} transactions
           </p>
-          <div className="overflow-x-auto rounded-lg border border-slate-200">
+          <div className="overflow-x-auto rounded-lg border border-border">
             <table className="w-full text-xs">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-100">
-                  <th className="text-left px-3 py-2 font-semibold text-slate-600 whitespace-nowrap">Date</th>
-                  <th className="text-left px-3 py-2 font-semibold text-slate-600">Description</th>
-                  <th className="text-right px-3 py-2 font-semibold text-slate-600">Debit</th>
-                  <th className="text-right px-3 py-2 font-semibold text-slate-600">Credit</th>
+                <tr className="bg-base border-b border-border">
+                  <th className="text-left px-3 py-2 font-mono font-semibold text-text-muted whitespace-nowrap">Date</th>
+                  <th className="text-left px-3 py-2 font-mono font-semibold text-text-muted">Description</th>
+                  <th className="text-right px-3 py-2 font-mono font-semibold text-text-muted">Debit</th>
+                  <th className="text-right px-3 py-2 font-mono font-semibold text-text-muted">Credit</th>
                 </tr>
               </thead>
               <tbody>
                 {preview.map((tx, i) => (
-                  <tr key={i} className="border-t border-slate-100">
-                    <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{tx.transaction_date}</td>
-                    <td className="px-3 py-2 text-slate-700 max-w-[200px] truncate">{tx.description}</td>
-                    <td className="px-3 py-2 text-right text-red-600 whitespace-nowrap">
+                  <tr key={i} className="border-t border-border hover:bg-elevated">
+                    <td className="px-3 py-2 text-text-secondary font-mono whitespace-nowrap">{tx.transaction_date}</td>
+                    <td className="px-3 py-2 text-text-secondary max-w-[200px] truncate">{tx.description}</td>
+                    <td className="px-3 py-2 text-right text-danger font-mono tabular-nums whitespace-nowrap">
                       {tx.debit ? tx.debit.toFixed(2) : '—'}
                     </td>
-                    <td className="px-3 py-2 text-right text-green-600 whitespace-nowrap">
+                    <td className="px-3 py-2 text-right text-success font-mono tabular-nums whitespace-nowrap">
                       {tx.credit ? tx.credit.toFixed(2) : '—'}
                     </td>
                   </tr>
@@ -507,7 +490,7 @@ function PreviewStep({
             </table>
           </div>
           {analysis.transactions.length > 10 && (
-            <p className="text-xs text-slate-400 mt-1.5 text-center">
+            <p className="text-xs text-text-muted font-mono mt-1.5 text-center">
               +{analysis.transactions.length - 10} more transactions
             </p>
           )}
@@ -518,8 +501,6 @@ function PreviewStep({
     </div>
   );
 }
-
-// ─── Main Wizard ──────────────────────────────────────────────────────────────
 
 export default function CreateParserWizard({ onClose }: { onClose: () => void }) {
   const [step, setStep] = useState<WizardStep>('upload');
@@ -646,13 +627,13 @@ export default function CreateParserWizard({ onClose }: { onClose: () => void })
   }
 
   return (
-    <div className="border border-violet-200 rounded-2xl bg-white shadow-sm overflow-hidden">
-      <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-violet-50 to-white">
+    <div className="border border-accent/20 rounded-2xl bg-surface shadow-surface overflow-hidden">
+      <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-accent-muted">
         <div className="flex items-center gap-2">
-          <Bot className="w-5 h-5 text-violet-600" />
-          <h3 className="text-sm font-bold text-slate-900">AI-Guided Parser Setup</h3>
+          <Bot className="w-5 h-5 text-accent" />
+          <h3 className="text-sm font-bold font-display text-text-primary">AI-Guided Parser Setup</h3>
         </div>
-        <button onClick={onClose} className="text-xs text-slate-400 hover:text-slate-600 transition-colors">
+        <button onClick={onClose} className="text-xs text-text-muted hover:text-text-secondary transition-colors">
           Cancel
         </button>
       </div>

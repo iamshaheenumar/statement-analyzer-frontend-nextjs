@@ -14,6 +14,8 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { getCardsAction } from "@/app/actions/card";
 import { Sparkles, Loader2 } from "lucide-react";
 import type { ParserConfigData } from "@/lib/parsers/configParser";
+import { motion } from "framer-motion";
+import { pageVariants } from "@/lib/motion";
 
 type SavedCard = {
   id: string;
@@ -81,7 +83,6 @@ export default function UploadPage() {
     }
   };
 
-  // Shared post-parse logic — decides which prompt to show next
   async function handleParseSuccess(
     result: any,
     parsedId: string,
@@ -98,13 +99,11 @@ export default function UploadPage() {
       ? savedCards.some((c) => c.cardNumber?.toUpperCase() === cardNumber.toUpperCase())
       : false;
 
-    // Show save-parser prompt first (only for AI-parsed results with a config)
     if (isLoggedIn && parsedBy === "ai" && suggestedConfig) {
       setStage({ type: "save_parser", pending: { parsedId, bank, cardType, suggestedConfig } });
       return;
     }
 
-    // Then save-card prompt
     if (isLoggedIn && !cardAlreadySaved) {
       setStage({ type: "save_card", pending: { parsedId, bank, cardType, cardNumber, usedPassword } });
       return;
@@ -128,7 +127,6 @@ export default function UploadPage() {
       const cardNumber = cardNumMatch ? cardNumMatch[1].toUpperCase() : null;
 
       if (result.parsedBy === "generic" || result.bank === "unknown") {
-        // Bank not recognized — offer AI parsing
         setStage({ type: "unknown_bank", pages, password: data.password || "" });
         return;
       }
@@ -165,13 +163,12 @@ export default function UploadPage() {
 
   const handleSaveParserDone = async () => {
     if (stage.type !== "save_parser") return;
-    const { parsedId, bank, cardType, suggestedConfig } = stage.pending;
+    const { parsedId } = stage.pending;
 
-    // After parser saved, check if we need save-card prompt
     const supabase = createSupabaseBrowserClient();
     const { data: { session } } = await supabase.auth.getSession();
     if (session) {
-      setStage({ type: "save_card", pending: { parsedId, bank, cardType, cardNumber: null, usedPassword: "" } });
+      setStage({ type: "save_card", pending: { parsedId, bank: stage.pending.bank, cardType: stage.pending.cardType, cardNumber: null, usedPassword: "" } });
     } else {
       router.push(`/view-parsed?id=${parsedId}`);
     }
@@ -180,19 +177,25 @@ export default function UploadPage() {
   const handleSaveCardDone = () => {
     if (stage.type !== "save_card") return;
     const id = stage.pending.parsedId;
-    refreshCards(); // keep local list in sync so next upload won't re-prompt
+    refreshCards();
     setStage({ type: "idle" });
     router.push(`/view-parsed?id=${id}`);
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-base">
       <Navbar />
-
-      <main className="max-w-xl mx-auto px-4 py-12">
+      <motion.main
+        className="max-w-xl mx-auto px-4 py-12"
+        variants={pageVariants}
+        initial="initial"
+        animate="animate"
+      >
         <div className="mb-7">
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Import Statement</h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <h1 className="font-display text-2xl font-bold text-text-primary tracking-tight">
+            Import Statement
+          </h1>
+          <p className="text-sm text-text-secondary mt-1">
             Upload a bank PDF to extract and review your transactions.
           </p>
         </div>
@@ -239,7 +242,7 @@ export default function UploadPage() {
             />
           </div>
         )}
-      </main>
+      </motion.main>
     </div>
   );
 }
@@ -256,25 +259,29 @@ function UnknownBankPanel({
   onBack: () => void;
 }) {
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+    <div className="bg-surface border border-border rounded-2xl shadow-surface overflow-hidden">
       <div className="px-6 py-10 flex flex-col items-center text-center">
-        <div className="w-14 h-14 rounded-2xl bg-violet-50 flex items-center justify-center mb-4">
-          <Sparkles className="w-7 h-7 text-violet-500" />
+        <div className="w-14 h-14 rounded-2xl bg-accent-muted ring-1 ring-accent/20 flex items-center justify-center mb-4">
+          <Sparkles className="w-7 h-7 text-accent" />
         </div>
-        <h2 className="text-base font-bold text-slate-800 mb-1">Bank not recognized</h2>
-        <p className="text-sm text-slate-500 mb-6 max-w-sm">
+        <h2 className="font-display text-base font-bold text-text-primary mb-1">
+          Bank not recognized
+        </h2>
+        <p className="text-sm text-text-secondary mb-6 max-w-sm">
           This bank isn&apos;t in our built-in library yet. Use AI to parse the statement —
           it reads any format and learns the pattern for next time.
         </p>
 
         {error && (
-          <p className="text-xs text-red-600 mb-4 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
+          <p className="text-xs text-danger mb-4 bg-danger-muted px-3 py-2 rounded-lg border border-danger/20">
+            {error}
+          </p>
         )}
 
         <button
           onClick={onAiParse}
           disabled={isLoading}
-          className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold transition-colors disabled:opacity-60"
+          className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-accent hover:bg-accent/90 text-black text-sm font-semibold transition-colors disabled:opacity-60 shadow-[0_0_20px_#00d4ff33]"
         >
           {isLoading ? (
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -287,7 +294,7 @@ function UnknownBankPanel({
         <button
           onClick={onBack}
           disabled={isLoading}
-          className="mt-3 text-xs text-slate-400 hover:text-slate-600 transition-colors"
+          className="mt-3 text-xs text-text-muted hover:text-text-secondary transition-colors"
         >
           Upload a different file
         </button>

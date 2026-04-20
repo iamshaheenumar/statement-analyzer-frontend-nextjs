@@ -35,50 +35,54 @@ export default function SaveParserPrompt({ bank, cardType, suggestedConfig, onDo
   };
 
   return (
-    <div className="bg-white border border-violet-200 rounded-2xl shadow-sm overflow-hidden">
-      <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+    <div className="bg-surface border border-border rounded-2xl shadow-surface overflow-hidden">
+      <div className="px-5 py-4 border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-md bg-violet-100 flex items-center justify-center">
-            <Sparkles className="w-3.5 h-3.5 text-violet-600" />
+          <div className="w-6 h-6 rounded-md bg-accent-muted ring-1 ring-accent/20 flex items-center justify-center">
+            <Sparkles className="w-3.5 h-3.5 text-accent" />
           </div>
-          <p className="text-sm font-semibold text-slate-800">Save AI Parser?</p>
+          <p className="font-display text-sm font-semibold text-text-primary">Save AI Parser?</p>
         </div>
         <button
           onClick={onDone}
-          className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+          className="p-1 rounded-lg text-text-muted hover:text-text-primary hover:bg-elevated transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
       </div>
 
       <div className="px-5 py-4 space-y-4">
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-text-secondary">
           The AI learned the format of this statement. Save the parser so future uploads
           from this bank parse automatically — no AI needed next time.
         </p>
 
         <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1.5">Bank name</label>
+          <label className="block text-xs font-medium text-text-secondary mb-1.5">Bank name</label>
           <input
             type="text"
             value={bankName}
             onChange={(e) => setBankName(e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-shadow"
+            className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-base text-text-primary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent transition-shadow"
           />
         </div>
 
-        <div className="flex items-center gap-2 text-xs text-slate-400">
-          <span className={`px-2 py-0.5 rounded-full font-medium ${cardType === 'credit' ? 'bg-purple-50 text-purple-600' : 'bg-emerald-50 text-emerald-600'}`}>
+        <div className="flex items-center gap-2 text-xs text-text-muted">
+          <span className={`px-2 py-0.5 rounded-full font-medium border ${
+            cardType === "credit"
+              ? "bg-accent-muted text-accent border-accent/20"
+              : "bg-success-muted text-success border-success/20"
+          }`}>
             {cardType}
           </span>
-          <span>{suggestedConfig.keywords.join(', ')}</span>
+          <span className="font-mono">{suggestedConfig.keywords.join(", ")}</span>
         </div>
 
         <div className="flex gap-2 pt-1">
           <button
             onClick={handleSave}
             disabled={isPending}
-            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold bg-violet-600 hover:bg-violet-700 text-white transition-colors disabled:opacity-50"
+            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold bg-accent hover:bg-accent/90 text-black transition-colors disabled:opacity-50"
           >
             {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
             Save Parser
@@ -86,7 +90,7 @@ export default function SaveParserPrompt({ bank, cardType, suggestedConfig, onDo
           <button
             onClick={onDone}
             disabled={isPending}
-            className="flex-1 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+            className="flex-1 py-2 rounded-lg text-sm font-semibold text-text-secondary hover:bg-elevated transition-colors"
           >
             Skip
           </button>

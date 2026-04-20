@@ -44,15 +44,15 @@ export default function SaveCardPrompt({
   };
 
   return (
-    <div className="bg-white border border-blue-200 rounded-2xl shadow-sm overflow-hidden">
-      <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+    <div className="bg-surface border border-border rounded-2xl shadow-surface overflow-hidden">
+      <div className="px-5 py-4 border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <CreditCard className="w-4 h-4 text-blue-500" />
-          <p className="text-sm font-semibold text-slate-800">Save this card?</p>
+          <CreditCard className="w-4 h-4 text-accent" />
+          <p className="font-display text-sm font-semibold text-text-primary">Save this card?</p>
         </div>
         <button
           onClick={onDone}
-          className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+          className="p-1 rounded-lg text-text-muted hover:text-text-primary hover:bg-elevated transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
@@ -60,21 +60,21 @@ export default function SaveCardPrompt({
 
       <div className="px-5 py-4 space-y-4">
         {/* Card preview */}
-        <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
-          <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center shrink-0">
-            <CreditCard className="w-4 h-4 text-blue-500" />
+        <div className="flex items-center gap-3 p-3 bg-elevated rounded-xl">
+          <div className="w-8 h-8 bg-accent-muted rounded-lg ring-1 ring-accent/20 flex items-center justify-center shrink-0">
+            <CreditCard className="w-4 h-4 text-accent" />
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-slate-800">{bank}</p>
+            <p className="font-display text-sm font-semibold text-text-primary">{bank}</p>
             <div className="flex items-center gap-2 mt-0.5">
               {cardNumber && (
-                <span className="text-xs text-slate-400 font-mono">{cardNumber}</span>
+                <span className="text-xs text-text-muted font-mono">{cardNumber}</span>
               )}
               <span
-                className={`text-xs font-medium px-1.5 py-0.5 rounded-full capitalize ${
+                className={`text-xs font-medium px-1.5 py-0.5 rounded-full capitalize border ${
                   cardType === "credit"
-                    ? "bg-purple-50 text-purple-600"
-                    : "bg-emerald-50 text-emerald-600"
+                    ? "bg-accent-muted text-accent border-accent/20"
+                    : "bg-success-muted text-success border-success/20"
                 }`}
               >
                 {cardType}
@@ -85,15 +85,15 @@ export default function SaveCardPrompt({
 
         {/* Nickname */}
         <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1.5">
-            Nickname <span className="text-slate-400 font-normal">(optional)</span>
+          <label className="block text-xs font-medium text-text-secondary mb-1.5">
+            Nickname <span className="text-text-muted font-normal">(optional)</span>
           </label>
           <input
             type="text"
             placeholder={`e.g. My ${bank} Card`}
             value={nickname}
             onChange={(e) => setNickname(e.target.value)}
-            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white placeholder:text-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
+            className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-base placeholder:text-text-muted text-text-primary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent transition-shadow"
           />
         </div>
 
@@ -104,11 +104,11 @@ export default function SaveCardPrompt({
               type="checkbox"
               checked={savePassword}
               onChange={(e) => setSavePassword(e.target.checked)}
-              className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+              className="w-4 h-4 rounded border-border accent-accent"
             />
             <div className="flex items-center gap-1.5">
-              <Lock className="w-3.5 h-3.5 text-slate-400" />
-              <span className="text-sm text-slate-700">
+              <Lock className="w-3.5 h-3.5 text-text-muted" />
+              <span className="text-sm text-text-secondary">
                 Save PDF password for auto-fill next time
               </span>
             </div>
@@ -120,7 +120,7 @@ export default function SaveCardPrompt({
           <button
             onClick={handleSave}
             disabled={isPending}
-            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold bg-accent hover:bg-accent/90 text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
             Save Card
@@ -128,7 +128,7 @@ export default function SaveCardPrompt({
           <button
             onClick={onDone}
             disabled={isPending}
-            className="flex-1 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+            className="flex-1 py-2 rounded-lg text-sm font-semibold text-text-secondary hover:bg-elevated transition-colors"
           >
             Skip
           </button>

@@ -7,6 +7,8 @@ import type { ParsedDataWithId, Transaction } from "@/features/dashboard/types";
 import TransactionsTable from "./components/TransactionsTable";
 import SimpleSearch from "./components/SimpleSearch";
 import ParsedHeader from "./components/ParsedHeader";
+import { motion } from "framer-motion";
+import { pageVariants } from "@/lib/motion";
 
 type Props = { id?: string };
 
@@ -79,7 +81,12 @@ export default function ViewParsed({ id }: Props) {
   };
 
   return (
-    <main className="max-w-5xl mx-auto px-4 py-8 space-y-4">
+    <motion.main
+      className="max-w-5xl mx-auto px-4 py-8 space-y-4"
+      variants={pageVariants}
+      initial="initial"
+      animate="animate"
+    >
       <ParsedHeader
         bank={parsedData?.bank || ""}
         fromDate={parsedData?.from_date?.toString()}
@@ -102,7 +109,6 @@ export default function ViewParsed({ id }: Props) {
         toDate={parsedData?.to_date?.toString()}
         currency={parsedData?.currency || parsedData?.summary?.currency || "AED"}
       />
-
-    </main>
+    </motion.main>
   );
 }

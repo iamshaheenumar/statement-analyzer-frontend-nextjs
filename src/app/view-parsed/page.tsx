@@ -8,7 +8,7 @@ type PageProps = {
 export default async function ViewParsedPage(props: PageProps) {
   const { id } = await props.searchParams;
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-base">
       <Navbar />
       <ViewParsed id={id} />
     </div>

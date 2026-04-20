@@ -1,6 +1,8 @@
 "use client";
 
 import { ArrowDownRight, ArrowUpRight, TrendingUp } from "lucide-react";
+import { motion } from "framer-motion";
+import { cardHover } from "@/lib/motion";
 
 type MonthlyData = { income: number; expenses: number; netSavings: number };
 
@@ -13,47 +15,51 @@ export default function SummaryCards({ monthlyData }: { monthlyData: MonthlyData
       label: "Total Income",
       value: monthlyData.income,
       icon: ArrowDownRight,
-      iconBg: "bg-green-100",
-      iconColor: "text-green-600",
-      valueColor: "text-green-700",
+      iconBg: "bg-success-muted",
+      iconColor: "text-success",
+      valueColor: "text-success",
     },
     {
       label: "Total Expenses",
       value: monthlyData.expenses,
       icon: ArrowUpRight,
-      iconBg: "bg-red-100",
-      iconColor: "text-red-500",
-      valueColor: "text-red-600",
+      iconBg: "bg-danger-muted",
+      iconColor: "text-danger",
+      valueColor: "text-danger",
     },
     {
       label: "Net Savings",
       value: monthlyData.netSavings,
       icon: TrendingUp,
-      iconBg: monthlyData.netSavings >= 0 ? "bg-blue-100" : "bg-orange-100",
-      iconColor: monthlyData.netSavings >= 0 ? "text-blue-600" : "text-orange-600",
-      valueColor: monthlyData.netSavings >= 0 ? "text-blue-700" : "text-red-600",
+      iconBg: monthlyData.netSavings >= 0 ? "bg-accent-muted" : "bg-danger-muted",
+      iconColor: monthlyData.netSavings >= 0 ? "text-accent" : "text-danger",
+      valueColor: monthlyData.netSavings >= 0 ? "text-text-primary" : "text-danger",
     },
   ];
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
       {cards.map(({ label, value, icon: Icon, iconBg, iconColor, valueColor }) => (
-        <div
+        <motion.div
           key={label}
-          className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-sm"
+          initial="rest"
+          whileHover="hover"
+          whileTap="tap"
+          variants={cardHover}
+          className="bg-surface border border-border rounded-2xl p-4 sm:p-5 transition-all duration-200 hover:border-border-bright hover:bg-elevated"
         >
           <div className="flex items-center justify-between mb-3">
             <div className={`w-8 h-8 rounded-lg ${iconBg} flex items-center justify-center`}>
               <Icon className={`w-4 h-4 ${iconColor}`} />
             </div>
-            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">
+            <span className="text-[10px] font-semibold font-mono text-text-muted uppercase tracking-widest">
               {label}
             </span>
           </div>
-          <p className={`text-2xl font-bold ${valueColor} tabular-nums`}>
+          <p className={`font-display text-2xl font-bold ${valueColor} tabular-nums tracking-tight`}>
             AED {fmt(value)}
           </p>
-        </div>
+        </motion.div>
       ))}
     </div>
   );

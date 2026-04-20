@@ -49,11 +49,11 @@ export default async function ViewSaved({ id }: Props) {
 
   if (!statement) {
     return (
-      <div className="flex items-start gap-2.5 p-4 bg-red-50 border border-red-200 rounded-xl">
-        <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
+      <div className="flex items-start gap-2.5 p-4 bg-danger-muted border border-danger/20 rounded-xl">
+        <AlertCircle className="w-4 h-4 text-danger mt-0.5 shrink-0" />
         <div>
-          <p className="text-sm font-semibold text-red-700">Statement not found</p>
-          <p className="text-xs text-red-600 mt-0.5">
+          <p className="text-sm font-semibold text-danger">Statement not found</p>
+          <p className="text-xs text-danger/80 mt-0.5">
             This statement doesn&apos;t exist or belongs to another account.
           </p>
         </div>

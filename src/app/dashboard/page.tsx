@@ -36,7 +36,6 @@ async function getData(userId: string, month?: string, year?: string) {
   const startDate = new Date(selectedYear, selectedMonth - 1, 1);
   const endDate = new Date(selectedYear, selectedMonth, 0);
 
-  // Available months — scoped to user's statements
   const availableMonthRecords = await prisma.transaction.findMany({
     where: {
       transactionDate: { not: null },
@@ -59,7 +58,6 @@ async function getData(userId: string, month?: string, year?: string) {
     return acc;
   }, []);
 
-  // Transactions for selected month — scoped to user
   const transactions = await prisma.transaction.findMany({
     where: {
       transactionDate: { gte: startDate, lte: endDate },
@@ -132,7 +130,7 @@ export default async function FinanceDashboard({
   );
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-base">
       <Navbar />
       <main className="max-w-5xl mx-auto px-4 py-8 space-y-5">
         <Suspense>

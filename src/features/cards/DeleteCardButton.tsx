@@ -32,8 +32,8 @@ export function DeleteCardButton({ id }: { id: string }) {
       title={confirm ? "Click again to confirm" : "Delete card"}
       className={`p-1.5 rounded-lg transition-colors ${
         confirm
-          ? "bg-red-500 text-white"
-          : "text-slate-300 hover:text-red-500 hover:bg-red-50"
+          ? "bg-danger text-white"
+          : "text-text-muted hover:text-danger hover:bg-danger-muted"
       } ${isPending ? "opacity-50 cursor-not-allowed" : ""}`}
     >
       <Trash2 className="w-3.5 h-3.5" />

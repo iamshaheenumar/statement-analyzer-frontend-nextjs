@@ -40,18 +40,18 @@ export function DeleteButton({ id }: { id: string }) {
         className="flex items-center gap-1.5 px-2 py-1"
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
       >
-        <span className="text-xs text-slate-500 whitespace-nowrap">Delete?</span>
+        <span className="text-xs text-text-secondary whitespace-nowrap">Delete?</span>
         <button
           onClick={handleConfirm}
           disabled={isPending}
-          className="px-2 py-0.5 text-xs font-semibold text-white bg-red-500 hover:bg-red-600 rounded-md transition-colors disabled:opacity-50"
+          className="px-2 py-0.5 text-xs font-semibold text-white bg-danger hover:bg-danger/80 rounded-md transition-colors disabled:opacity-50"
         >
           {isPending ? "…" : "Yes"}
         </button>
         <button
           onClick={handleCancel}
           disabled={isPending}
-          className="px-2 py-0.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors"
+          className="px-2 py-0.5 text-xs font-semibold text-text-secondary bg-elevated hover:bg-overlay rounded-md transition-colors"
         >
           No
         </button>
@@ -63,7 +63,7 @@ export function DeleteButton({ id }: { id: string }) {
     <button
       onClick={handleDelete}
       title="Delete statement"
-      className="p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+      className="p-1.5 rounded-lg text-text-muted hover:text-danger hover:bg-danger-muted transition-colors"
     >
       <Trash2 className="w-3.5 h-3.5" />
     </button>

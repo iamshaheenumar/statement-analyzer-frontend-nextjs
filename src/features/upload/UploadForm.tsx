@@ -15,6 +15,8 @@ import {
   Building2,
   CheckCircle2,
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { dropzoneVariants, fileEntryVariants } from "@/lib/motion";
 
 type FormValues = {
   file: FileList;
@@ -107,91 +109,104 @@ export default function UploadForm({
     setIsPasswordProtected(false);
   };
 
+  const dropzoneState = isDragging ? "dragging" : file ? "accepted" : "idle";
+
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+    <div className="bg-surface rounded-2xl border border-border shadow-surface overflow-hidden">
       <form onSubmit={handleSubmit}>
         <div className="p-6 space-y-5">
           {/* File drop zone */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              PDF File <span className="text-red-500">*</span>
+            <label className="block text-xs font-medium text-text-secondary mb-2">
+              PDF File <span className="text-danger">*</span>
             </label>
 
-            <div
+            <motion.div
+              animate={dropzoneState}
+              variants={dropzoneVariants}
               onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
               onDragLeave={() => setIsDragging(false)}
               onDrop={handleDrop}
               className={`relative rounded-xl border-2 border-dashed transition-colors ${
                 isDragging
-                  ? "border-blue-400 bg-blue-50"
+                  ? "border-accent bg-accent-muted"
                   : file
-                  ? "border-slate-200 bg-slate-50"
-                  : "border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-slate-100"
+                  ? "border-border bg-elevated"
+                  : "border-border bg-base hover:border-border-bright hover:bg-elevated"
               }`}
             >
-              {file ? (
-                <div className="flex items-center gap-3 p-4">
-                  <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <FileText className="w-4.5 h-4.5 text-blue-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-900 truncate">
-                      {file.name}
-                    </p>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      {(file.size / 1024 / 1024).toFixed(2)} MB
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={removeFile}
-                    className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
-                    aria-label="Remove file"
+              <AnimatePresence mode="wait">
+                {file ? (
+                  <motion.div
+                    key="file"
+                    variants={fileEntryVariants}
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                    className="flex items-center gap-3 p-4"
                   >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <input
-                    type="file"
-                    accept="application/pdf"
-                    onChange={handleFileChange}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  />
-                  <div className="py-10 flex flex-col items-center text-center px-4">
-                    <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center mb-3">
-                      <Upload className="w-5 h-5 text-slate-400" />
+                    <div className="w-9 h-9 bg-accent-muted rounded-lg ring-1 ring-accent/20 flex items-center justify-center flex-shrink-0">
+                      <FileText className="w-4 h-4 text-accent" />
                     </div>
-                    <p className="text-sm font-medium text-slate-700">
-                      Drop your PDF here or{" "}
-                      <span className="text-blue-600">browse</span>
-                    </p>
-                    <p className="text-xs text-slate-400 mt-1">
-                      Up to 10 MB · Password-protected files supported
-                    </p>
-                  </div>
-                </>
-              )}
-            </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-text-primary truncate">
+                        {file.name}
+                      </p>
+                      <p className="text-xs text-text-muted mt-0.5">
+                        {(file.size / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={removeFile}
+                      className="p-1.5 text-text-muted hover:text-danger hover:bg-danger-muted rounded-lg transition-colors"
+                      aria-label="Remove file"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </motion.div>
+                ) : (
+                  <motion.div key="empty" initial={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <input
+                      type="file"
+                      accept="application/pdf"
+                      onChange={handleFileChange}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
+                    <div className="py-10 flex flex-col items-center text-center px-4">
+                      <div className="w-10 h-10 bg-elevated rounded-xl flex items-center justify-center mb-3">
+                        <Upload className="w-5 h-5 text-text-muted" />
+                      </div>
+                      <p className="text-sm font-medium text-text-secondary">
+                        Drop your PDF here or{" "}
+                        <span className="text-accent">browse</span>
+                      </p>
+                      <p className="text-xs text-text-muted mt-1">
+                        Up to 10 MB · Password-protected files supported
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
           </div>
 
           {/* Password field */}
           {file && isPasswordProtected && (
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-medium text-slate-700">
-                  Password <span className="text-red-500">*</span>
+                <label className="block text-xs font-medium text-text-secondary">
+                  Password <span className="text-danger">*</span>
                 </label>
                 {autoPasswordNote && !passwordManuallyEdited && (
-                  <span className="flex items-center gap-1 text-xs text-emerald-600 font-medium">
+                  <span className="flex items-center gap-1 text-xs text-success font-medium bg-success-muted px-2 py-0.5 rounded-full ring-1 ring-success/20">
                     <CheckCircle2 className="w-3 h-3" />
                     Auto-filled from {autoPasswordNote}
                   </span>
                 )}
               </div>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
                 <input
                   type="password"
                   placeholder="Enter PDF password"
@@ -201,7 +216,7 @@ export default function UploadForm({
                     setPasswordManuallyEdited(true);
                   }}
                   required
-                  className="w-full pl-9 pr-4 py-2.5 text-sm border border-slate-200 rounded-lg bg-white placeholder:text-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
+                  className="w-full pl-9 pr-4 py-2.5 text-sm border border-border rounded-lg bg-base placeholder:text-text-muted text-text-primary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent transition-shadow"
                 />
               </div>
             </div>
@@ -209,9 +224,9 @@ export default function UploadForm({
 
           {/* Error banner */}
           {error && (
-            <div className="flex items-start gap-2.5 p-3 bg-red-50 border border-red-200 rounded-lg">
-              <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-red-700">{error}</p>
+            <div className="flex items-start gap-2.5 p-3 bg-danger-muted border border-danger/30 rounded-lg">
+              <AlertCircle className="w-4 h-4 text-danger mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-danger">{error}</p>
             </div>
           )}
 
@@ -219,9 +234,11 @@ export default function UploadForm({
           <button
             type="submit"
             disabled={!file || isLoading}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-colors
-              bg-blue-600 hover:bg-blue-700 text-white
-              disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
+            className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all duration-150 ${
+              !file || isLoading
+                ? "bg-elevated text-text-muted cursor-not-allowed"
+                : "bg-accent hover:bg-accent/90 text-black shadow-[0_0_20px_#00d4ff33]"
+            }`}
           >
             {isLoading ? (
               <>
@@ -238,16 +255,16 @@ export default function UploadForm({
         </div>
 
         {/* Footer bar */}
-        <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex flex-wrap items-center gap-5">
-          <span className="flex items-center gap-1.5 text-xs text-slate-400">
+        <div className="px-6 py-3.5 bg-base border-t border-border flex flex-wrap items-center gap-5">
+          <span className="flex items-center gap-1.5 text-xs text-text-muted">
             <Shield className="w-3.5 h-3.5" />
             Processed locally
           </span>
-          <span className="flex items-center gap-1.5 text-xs text-slate-400">
+          <span className="flex items-center gap-1.5 text-xs text-text-muted">
             <Zap className="w-3.5 h-3.5" />
             Instant results
           </span>
-          <span className="flex items-center gap-1.5 text-xs text-slate-400">
+          <span className="flex items-center gap-1.5 text-xs text-text-muted">
             <Building2 className="w-3.5 h-3.5" />
             UAE banks supported
           </span>

@@ -49,44 +49,48 @@ export default function ParsedHeader({
         {onBack && (
           <button
             onClick={onBack}
-            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors shrink-0"
+            className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-elevated transition-colors shrink-0"
             aria-label="Go back"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
         )}
         <div className="min-w-0">
-          <p className="text-xs text-slate-400 font-medium uppercase tracking-wide">Parsed Statement</p>
-          <h1 className="text-lg font-bold text-slate-900 truncate">{bank || "Unknown Bank"}</h1>
+          <p className="text-xs text-text-muted font-mono font-medium uppercase tracking-widest">
+            Parsed Statement
+          </p>
+          <h1 className="font-display text-lg font-bold text-text-primary truncate">
+            {bank || "Unknown Bank"}
+          </h1>
         </div>
       </div>
 
       {/* Right: badges + save */}
       <div className="flex flex-wrap items-center gap-2">
         {(from || to) && (
-          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full">
-            <Calendar className="w-3.5 h-3.5 text-slate-400" />
-            <span className="text-slate-400">From</span>
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-text-secondary bg-elevated border border-border px-2.5 py-1 rounded-full">
+            <Calendar className="w-3.5 h-3.5 text-text-muted" />
+            <span className="text-text-muted">From</span>
             {from || "—"}
-            <span className="text-slate-400">to</span>
+            <span className="text-text-muted">to</span>
             {to || "—"}
           </span>
         )}
         {due && (
-          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-100 px-2.5 py-1 rounded-full">
-            <Calendar className="w-3.5 h-3.5 text-amber-400" />
-            <span className="text-amber-400">Due</span>
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-warning bg-warning-muted border border-warning/20 px-2.5 py-1 rounded-full">
+            <Calendar className="w-3.5 h-3.5 text-warning" />
+            <span className="text-warning/70">Due</span>
             {due}
           </span>
         )}
         {cardType && (
-          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full capitalize">
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-text-secondary bg-elevated border border-border px-2.5 py-1 rounded-full capitalize">
             <CreditCard className="w-3.5 h-3.5" />
             {cardType}
           </span>
         )}
         {parsedBy === "ai" && (
-          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-600 bg-violet-50 border border-violet-100 px-2.5 py-1 rounded-full">
+          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent bg-accent-muted border border-accent/20 px-2.5 py-1 rounded-full">
             <Sparkles className="w-3.5 h-3.5" />
             Parsed with AI
           </span>

@@ -45,28 +45,29 @@ export default function Header({ availableMonths }: Props) {
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <h1 className="text-xl font-bold text-slate-900 tracking-tight">Dashboard</h1>
-        <p className="text-sm text-slate-500 mt-0.5">Overview of your transactions</p>
+        <h1 className="font-display text-xl font-bold text-text-primary tracking-tight">Dashboard</h1>
+        <p className="text-sm text-text-secondary mt-0.5">Overview of your transactions</p>
       </div>
 
       <div className="flex items-center gap-2">
-        {/* Month selector */}
         <div className="relative">
           <select
             value={`${currentMonth}-${currentYear}`}
             onChange={(e) => handleChange(e.target.value)}
-            className="appearance-none pl-3 pr-8 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+            className="appearance-none pl-3 pr-8 py-2 text-sm font-medium text-text-primary bg-surface border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
           >
             {options.map(({ value, label }) => (
-              <option key={value} value={value}>{label}</option>
+              <option key={value} value={value} className="bg-surface text-text-primary">
+                {label}
+              </option>
             ))}
           </select>
-          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted pointer-events-none" />
         </div>
 
         <Link
           href="/upload"
-          className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+          className="flex items-center gap-1.5 px-3 py-2 bg-accent hover:bg-accent/90 text-black text-sm font-medium rounded-lg transition-colors"
         >
           <Upload className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">Upload</span>

@@ -21,27 +21,27 @@ export default async function ParsersPage() {
   const { items, error } = await getParsers(user!.id);
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-base">
       <Navbar />
       <main className="max-w-2xl mx-auto px-4 py-8">
         <div className="mb-7">
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">My Parsers</h1>
-          <p className="text-sm text-slate-500 mt-0.5">
+          <h1 className="font-display text-xl font-bold text-text-primary tracking-tight">My Parsers</h1>
+          <p className="text-sm text-text-secondary mt-0.5">
             AI-generated parsers for banks not in the built-in library.
           </p>
         </div>
 
         {error ? (
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm">
+          <div className="bg-surface border border-border rounded-2xl shadow-surface">
             <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-              <div className="w-12 h-12 rounded-xl bg-red-50 flex items-center justify-center mb-4">
-                <AlertCircle className="w-5 h-5 text-red-400" />
+              <div className="w-12 h-12 rounded-xl bg-danger-muted ring-1 ring-danger/20 flex items-center justify-center mb-4">
+                <AlertCircle className="w-5 h-5 text-danger" />
               </div>
-              <p className="text-sm font-semibold text-slate-700 mb-1">Could not load parsers</p>
-              <p className="text-xs text-slate-400 mb-5">There was a problem connecting to the database.</p>
+              <p className="font-display text-sm font-semibold text-text-primary mb-1">Could not load parsers</p>
+              <p className="text-xs text-text-muted mb-5">There was a problem connecting to the database.</p>
               <a
                 href="/parsers"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-lg transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-elevated hover:bg-overlay border border-border text-text-secondary text-sm font-semibold rounded-lg transition-colors"
               >
                 <RefreshCw className="w-4 h-4" />
                 Retry
