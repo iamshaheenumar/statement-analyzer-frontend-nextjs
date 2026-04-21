@@ -90,7 +90,7 @@ async function getData(userId: string, month?: string, year?: string) {
   const formattedTransactions: DashboardTransaction[] = transactions.map((tx) => {
     const d = tx.transactionDate;
     const dateStr = d
-      ? `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}-${d.getFullYear()}`
+      ? `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${d.getFullYear()}`
       : "";
     return {
       date: dateStr,
