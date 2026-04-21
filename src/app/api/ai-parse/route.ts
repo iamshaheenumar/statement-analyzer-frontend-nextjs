@@ -6,7 +6,7 @@ import type { ParserConfigData } from '@/lib/parsers/configParser';
 
 export const runtime = 'nodejs';
 
-const SYSTEM_PROMPT = `You are a bank statement parser. Extract all transactions from bank statement text and return ONLY valid JSON — no markdown, no explanation.
+const SYSTEM_PROMPT = `You are a bank statement parser. Extract all transactions and summary fields from bank statement text and return ONLY valid JSON — no markdown, no explanation.
 
 Return this exact structure:
 {
@@ -15,6 +15,13 @@ Return this exact structure:
   "currency": "AED",
   "from_date": "YYYY-MM-DD" | null,
   "to_date": "YYYY-MM-DD" | null,
+  "issued_date": "YYYY-MM-DD" | null,
+  "card_variant": "Titanium Credit Card" | null,
+  "credit_limit": 50000.00 | null,
+  "available_credit": 32500.00 | null,
+  "min_payment_due": 250.00 | null,
+  "total_outstanding": 17500.00 | null,
+  "total_amount_due": 17500.00 | null,
   "columnHeaders": ["Date", "Description", "Amount", "..."],
   "transactions": [
     {
@@ -30,6 +37,7 @@ Return this exact structure:
   "parserConfig": {
     "bankName": "Full Bank Name",
     "cardType": "credit" | "debit",
+    "cardVariant": "titanium credit card",
     "keywords": ["lowercase keyword1", "lowercase keyword2"],
     "rowPattern": "regex pattern string matching one transaction line",
     "groups": { "date": 1, "description": 2, "amount": 3, "creditFlag": 4 },
@@ -38,6 +46,13 @@ Return this exact structure:
     "creditFlag": "CR",
     "periodFrom": "regex with group 1 capturing from-date string",
     "periodTo": "regex with group 1 capturing to-date string",
+    "issuedDatePattern": "regex with group 1 capturing issued date",
+    "cardVariantPattern": "regex with group 1 capturing card variant name",
+    "creditLimitPattern": "regex with group 1 capturing credit limit amount",
+    "availableCreditPattern": "regex with group 1 capturing available credit amount",
+    "minPaymentPattern": "regex with group 1 capturing minimum payment due",
+    "totalOutstandingPattern": "regex with group 1 capturing total outstanding balance",
+    "totalAmountDuePattern": "regex with group 1 capturing total amount due",
     "columnHeaders": ["Date", "Description", "Amount", "..."]
   }
 }
@@ -49,11 +64,13 @@ Rules:
 - Amounts as plain decimals — no currency symbols, no commas
 - Include ALL rows: purchases, payments, fees, interest, reversals
 - currency: the statement's settlement/base currency (e.g. "AED", "INR", "USD")
+- issued_date: the date the statement was generated/issued (not the period dates)
+- card_variant: the specific card product name (e.g. "Titanium Credit Card", "VISA INFINITE", "Platinum Debit")
+- credit_limit/available_credit: only for credit cards, null for debit
 - fx_currency/fx_amount: only when a transaction was made in a different currency from the statement currency
-- columnHeaders: the exact column names from the statement's table header row (e.g. ["Date", "Transaction Description", "Transaction Currency", "Transaction Amount", "FX Rate", "Total Amount (AED)"])
-- rawCells: for each transaction, the raw cell values as they appear in the PDF, in the same order as columnHeaders
-- parserConfig.rowPattern must be a valid JavaScript regex string
-- parserConfig.columnHeaders must match the top-level columnHeaders array`;
+- columnHeaders: the exact column names from the statement's table header row
+- rawCells: for each transaction, the raw cell values as they appear in the PDF
+- All regex patterns must be valid JavaScript regex strings (no forward-slash delimiters)`;
 
 interface AiParseRequest {
   pages: { page: number; lines: string[] }[];
@@ -149,6 +166,7 @@ export async function POST(request: NextRequest) {
         bankName: parsed.parserConfig.bankName || parsed.bank || 'Unknown',
         cardType,
         currency,
+        cardVariant: parsed.parserConfig.cardVariant || undefined,
         keywords: parsed.parserConfig.keywords || [],
         rowPattern: parsed.parserConfig.rowPattern || '',
         groups: parsed.parserConfig.groups || { date: 1, description: 2, amount: 3 },
@@ -157,6 +175,13 @@ export async function POST(request: NextRequest) {
         creditFlag: parsed.parserConfig.creditFlag,
         periodFrom: parsed.parserConfig.periodFrom,
         periodTo: parsed.parserConfig.periodTo,
+        issuedDatePattern: parsed.parserConfig.issuedDatePattern,
+        cardVariantPattern: parsed.parserConfig.cardVariantPattern,
+        creditLimitPattern: parsed.parserConfig.creditLimitPattern,
+        availableCreditPattern: parsed.parserConfig.availableCreditPattern,
+        minPaymentPattern: parsed.parserConfig.minPaymentPattern,
+        totalOutstandingPattern: parsed.parserConfig.totalOutstandingPattern,
+        totalAmountDuePattern: parsed.parserConfig.totalAmountDuePattern,
         columnHeaders: parsed.parserConfig.columnHeaders?.length ? parsed.parserConfig.columnHeaders : (columnHeaders.length ? columnHeaders : undefined),
       }
     : null;
@@ -167,6 +192,13 @@ export async function POST(request: NextRequest) {
     currency,
     from_date: parsed.from_date || null,
     to_date: parsed.to_date || null,
+    issued_date: parsed.issued_date || null,
+    card_variant: parsed.card_variant || null,
+    credit_limit: parsed.credit_limit ?? null,
+    available_credit: parsed.available_credit ?? null,
+    min_payment_due: parsed.min_payment_due ?? null,
+    total_outstanding: parsed.total_outstanding ?? null,
+    total_amount_due: parsed.total_amount_due ?? null,
     summary,
     transactions: normalized,
     parsedBy: 'ai',

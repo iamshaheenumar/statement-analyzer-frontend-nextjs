@@ -10,6 +10,32 @@ interface ParseRequestBody {
   pages: { page: number; lines: string[] }[];
 }
 
+function buildPageText(cfg: ParserConfigData, pages: PageContent[]): string {
+  const scoped = cfg.keywordsPage != null ? pages.filter(p => p.page === cfg.keywordsPage) : pages;
+  return scoped.flatMap(p => p.lines).join(' ').toLowerCase();
+}
+
+function matchesKeywords(cfg: ParserConfigData, pageText: string): boolean {
+  return cfg.keywords.every(k => pageText.includes(k.toLowerCase()));
+}
+
+function matchesCardType(cfg: ParserConfigData, allText: string): boolean {
+  const lower = allText.toLowerCase();
+  if (cfg.cardType === 'credit') {
+    return lower.includes('credit limit') || lower.includes('credit card') ||
+           lower.includes('outstanding balance') || lower.includes('minimum payment') ||
+           lower.includes('total amount due') || lower.includes('available credit');
+  }
+  // debit
+  return lower.includes('debit card') || lower.includes('savings account') ||
+         lower.includes('current account') || lower.includes('available balance');
+}
+
+function matchesCardVariant(cfg: ParserConfigData, allText: string): boolean {
+  if (!cfg.cardVariant) return false;
+  return allText.toLowerCase().includes(cfg.cardVariant.toLowerCase());
+}
+
 export async function POST(request: NextRequest) {
   let body: ParseRequestBody;
   try {
@@ -28,33 +54,50 @@ export async function POST(request: NextRequest) {
     text: p.lines.join('\n'),
   }));
 
-  // Find the first approved & active config whose keywords ALL match (AND) the statement text
+  const allText = pages.flatMap(p => p.lines).join(' ');
+
   let dbConfig: ParserConfigData | null = null;
   try {
     const configs = await prisma.parserConfig.findMany({
       where: { active: true, status: 'approved' },
       orderBy: { createdAt: 'desc' },
     });
-    const match = configs.find(c => {
+
+    // Tier 1: cardVariant + keywords + cardType
+    let matched = configs.find(c => {
       const cfg = c.config as ParserConfigData;
-      const scopedPages = cfg.keywordsPage != null
-        ? pages.filter(p => p.page === cfg.keywordsPage)
-        : pages;
-      const textLower = scopedPages.flatMap(p => p.lines).join(' ').toLowerCase();
-      return (c.keywords as string[]).every(k => textLower.includes(k.toLowerCase()));
+      if (!cfg.cardVariant) return false;
+      const pageText = buildPageText(cfg, pages);
+      return matchesKeywords(cfg, pageText) && matchesCardType(cfg, allText) && matchesCardVariant(cfg, allText);
     });
-    if (match) dbConfig = match.config as ParserConfigData;
+
+    // Tier 2: keywords + cardType
+    if (!matched) {
+      matched = configs.find(c => {
+        const cfg = c.config as ParserConfigData;
+        const pageText = buildPageText(cfg, pages);
+        return matchesKeywords(cfg, pageText) && matchesCardType(cfg, allText);
+      });
+    }
+
+    // Tier 3: keywords only
+    if (!matched) {
+      matched = configs.find(c => {
+        const cfg = c.config as ParserConfigData;
+        const pageText = buildPageText(cfg, pages);
+        return matchesKeywords(cfg, pageText);
+      });
+    }
+
+    if (matched) dbConfig = matched.config as ParserConfigData;
   } catch {
     // DB unavailable — fall through to generic
   }
 
   try {
     const result = parseStatement(pages, dbConfig);
-    // Only include raw page content for unknown banks so the user can submit them for admin review
-    if (!dbConfig) {
-      return NextResponse.json({ ...result, rawPageContent: pages });
-    }
-    return NextResponse.json(result);
+    // Always include rawPageContent so users can reparse with AI from ViewParsed
+    return NextResponse.json({ ...result, rawPageContent: pages });
   } catch (err) {
     console.error('[POST /api/parse]', err);
     return NextResponse.json({ error: 'Failed to parse statement' }, { status: 500 });

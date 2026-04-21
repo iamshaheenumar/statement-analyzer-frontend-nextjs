@@ -24,15 +24,22 @@ export interface StatementSummary {
 export interface ParseResult {
   bank: string;
   card_type: 'credit' | 'debit';
-  currency: string;   // base/settlement currency of the statement
+  currency: string;
   from_date: string | null;
   to_date: string | null;
+  issued_date?: string | null;
   due_date?: string | null;
+  card_variant?: string | null;
+  credit_limit?: number | null;
+  available_credit?: number | null;
+  min_payment_due?: number | null;
+  total_outstanding?: number | null;
+  total_amount_due?: number | null;
   summary: StatementSummary;
   transactions: Transaction[];
-  originalHeaders?: string[];  // Column labels from the original statement (in regex group order)
-  rawRows?: string[][];        // rawRows[i] = all captured groups for transaction i
-  rawPageContent?: PageContent[];  // Full extracted PDF pages — only set for unknown-bank (generic) results
+  originalHeaders?: string[];
+  rawRows?: string[][];
+  rawPageContent?: PageContent[];
 }
 
 /** One page of extracted PDF content. */

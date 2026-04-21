@@ -2,6 +2,8 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import axios from "axios";
+import { toast } from "sonner";
 import { useParsedStorage } from "@/features/dashboard/useParsedStorage";
 import type { ParsedDataWithId, Transaction } from "@/features/dashboard/types";
 import TransactionsTable from "./components/TransactionsTable";
@@ -18,6 +20,7 @@ export default function ViewParsed({ id }: Props) {
   const { parsedList, loading, updateParsed } = useParsedStorage();
   const [parsedData, setParsedData] = useState<ParsedDataWithId | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isReparsing, setIsReparsing] = useState(false);
 
   const parsed = useMemo(() => parsedList.find((p) => p.id === id), [parsedList, id]);
 
@@ -91,6 +94,25 @@ export default function ViewParsed({ id }: Props) {
     if (updated) setParsedData(updated);
   };
 
+  const handleReparseWithAI = async () => {
+    if (!parsedData?.rawPageContent?.length) {
+      toast.error("Original PDF pages not available. Please re-upload the file.");
+      return;
+    }
+    setIsReparsing(true);
+    try {
+      const res = await axios.post("/api/ai-parse", { pages: parsedData.rawPageContent });
+      const result = res.data;
+      const updated = await updateParsed(parsedData.id, { ...result, rawPageContent: parsedData.rawPageContent });
+      if (updated) setParsedData(updated);
+      toast.success("Reparsed with AI.");
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || "AI reparsing failed. Please try again.");
+    } finally {
+      setIsReparsing(false);
+    }
+  };
+
   return (
     <motion.main
       className="max-w-5xl mx-auto px-4 py-8 space-y-4"
@@ -102,11 +124,20 @@ export default function ViewParsed({ id }: Props) {
         bank={parsedData?.bank || ""}
         fromDate={parsedData?.from_date?.toString()}
         toDate={parsedData?.to_date?.toString()}
+        issuedDate={parsedData?.issued_date?.toString()}
         dueDate={parsedData?.due_date?.toString()}
         cardType={parsedData?.card_type}
+        cardVariant={parsedData?.card_variant}
+        creditLimit={parsedData?.credit_limit}
+        availableCredit={parsedData?.available_credit}
+        minPaymentDue={parsedData?.min_payment_due}
+        totalOutstanding={parsedData?.total_outstanding}
+        totalAmountDue={parsedData?.total_amount_due}
         parsedBy={parsedData?.parsedBy}
         parsedData={parsedData}
         onBack={() => router.back()}
+        onReparseWithAI={handleReparseWithAI}
+        isReparsing={isReparsing}
       />
 
       {parsedData?.parsedBy === "generic" && (

@@ -25,10 +25,17 @@ export type StatementSummary = {
 export type BaseStatement = {
   bank: string;
   card_type?: string | null;
+  card_variant?: string | null;
   currency?: string | null;
   from_date: Date | null;
   to_date: Date | null;
+  issued_date?: Date | string | null;
   due_date?: Date | string | null;
+  credit_limit?: number | null;
+  available_credit?: number | null;
+  min_payment_due?: number | null;
+  total_outstanding?: number | null;
+  total_amount_due?: number | null;
 };
 
 export type Statement = BaseStatement & {

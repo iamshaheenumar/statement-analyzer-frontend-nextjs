@@ -19,7 +19,10 @@ export async function saveStatementAction(data: ParsedData) {
 
     if (!data) throw new Error("Empty body");
 
-    const { id, bank, summary, transactions, from_date, to_date, card_type, currency } = data;
+    const {
+      id, bank, summary, transactions, from_date, to_date, issued_date, card_type, card_variant, currency,
+      credit_limit, available_credit, min_payment_due, total_outstanding, total_amount_due,
+    } = data;
 
     if (!bank || !summary || !Array.isArray(transactions)) {
       throw new Error("Invalid payload");
@@ -34,6 +37,16 @@ export async function saveStatementAction(data: ParsedData) {
       .filter((d): d is string => !!d);
     const categoryMap = await categorizeDescriptions(descriptions, user.id);
 
+    const summaryFields = {
+      issued_date: issued_date ? new Date(issued_date as string) : null,
+      card_variant: card_variant || null,
+      credit_limit: (credit_limit as any) ?? null,
+      available_credit: (available_credit as any) ?? null,
+      min_payment_due: (min_payment_due as any) ?? null,
+      total_outstanding: (total_outstanding as any) ?? null,
+      total_amount_due: (total_amount_due as any) ?? null,
+    };
+
     await prisma.$transaction(async (tx) => {
       await tx.statement.upsert({
         where: { id: statementId },
@@ -47,6 +60,7 @@ export async function saveStatementAction(data: ParsedData) {
           totalDebit: summary.total_debit,
           totalCredit: summary.total_credit,
           netChange: summary.net_change,
+          ...summaryFields,
         },
         create: {
           id: statementId,
@@ -60,6 +74,7 @@ export async function saveStatementAction(data: ParsedData) {
           totalDebit: summary.total_debit,
           totalCredit: summary.total_credit,
           netChange: summary.net_change,
+          ...summaryFields,
         },
       });
 

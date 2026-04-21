@@ -13,20 +13,38 @@ Return ONLY valid JSON — no markdown, no explanation, no code fences.
   "bankName": "Full Bank Name",
   "cardType": "credit" or "debit",
   "currency": "ISO 4217 code (AED, INR, USD, etc.)",
+  "cardVariant": "Titanium Credit Card" | null,
 
   "identification": {
-    "keywords": ["2-4 unique lowercase words/phrases that identify this bank and statement type"],
+    "keywords": ["2-4 unique lowercase words/phrases that identify this bank — do NOT include card type words like 'credit' or 'debit'"],
     "sampleLines": ["up to 3 actual lines from the statement that contain these keywords"]
   },
 
   "statementPeriod": {
     "fromDate": "YYYY-MM-DD or null",
     "toDate": "YYYY-MM-DD or null",
+    "issuedDate": "YYYY-MM-DD or null — the date the statement was generated",
     "dueDate": "YYYY-MM-DD or null — the payment due date if present",
     "fromPattern": "JavaScript regex with group 1 capturing the from-date string, or null",
     "toPattern": "JavaScript regex with group 1 capturing the to-date string, or null",
+    "issuedDatePattern": "JavaScript regex with group 1 capturing the issued date string, or null",
     "dueDatePattern": "JavaScript regex with group 1 capturing the due-date string, or null",
     "sampleLines": ["actual lines from the statement that contain these dates"]
+  },
+
+  "summaryFields": {
+    "cardVariantPattern": "JavaScript regex with group 1 capturing card variant name, or null",
+    "creditLimit": 50000.00 | null,
+    "creditLimitPattern": "JavaScript regex with group 1 capturing credit limit amount (digits and commas only in group), or null",
+    "availableCredit": 32500.00 | null,
+    "availableCreditPattern": "JavaScript regex with group 1 capturing available credit amount, or null",
+    "minPaymentDue": 250.00 | null,
+    "minPaymentPattern": "JavaScript regex with group 1 capturing minimum payment amount, or null",
+    "totalOutstanding": 17500.00 | null,
+    "totalOutstandingPattern": "JavaScript regex with group 1 capturing total outstanding balance amount, or null",
+    "totalAmountDue": 17500.00 | null,
+    "totalAmountDuePattern": "JavaScript regex with group 1 capturing total amount due, or null",
+    "sampleLines": ["actual lines from the statement containing these summary values"]
   },
 
   "transactionStructure": {
@@ -71,8 +89,12 @@ CRITICAL RULES:
 - Extract ALL transactions: purchases, payments, fees, interest, reversals
 - All dates in YYYY-MM-DD format
 - Amounts as plain decimals — no currency symbols, no commas
+- identification.keywords must NOT include card type words ("credit", "debit", "card") — only bank-specific identifiers
+- cardVariant: the specific card product name as it appears in the statement (e.g. "Titanium Credit Card")
+- For amount pattern groups: capture only digits, commas, and decimal point (e.g. group 1 = "17,500.00")
 - sampleMatchedLines and sampleUnmatchedLines must be copied verbatim from the statement text
-- columnHeaders: the exact column header names as they appear in the statement's transaction table (e.g. ["Date", "Transaction Description", "Transaction Currency", "Transaction Amount", "FX Rate", "Total Amount (AED)"])`;
+- summaryFields are null for debit cards where they don't apply
+- columnHeaders: the exact column header names as they appear in the statement's transaction table`;
 
 export async function POST(request: NextRequest) {
   if (!process.env.ANTHROPIC_API_KEY) {
@@ -111,7 +133,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'AI analysis failed. Please try again.' }, { status: 502 });
   }
 
-  const jsonStr = raw.replace(/^```(?:json)?\n?/m, '').replace(/\n?```$/m, '').trim();
+  let jsonStr = raw.trim();
+  jsonStr = jsonStr.replace(/^```[^\r\n]*\r?\n/, '');
+  jsonStr = jsonStr.replace(/\r?\n```\s*$/, '');
+  jsonStr = jsonStr.replace(/,(\s*[}\]])/g, '$1');
+  jsonStr = jsonStr.trim();
 
   let parsed: any;
   try {
@@ -140,6 +166,7 @@ export async function POST(request: NextRequest) {
   const cr = parsed.creditDebitRules || {};
   const sp = parsed.statementPeriod || {};
   const id = parsed.identification || {};
+  const sf = parsed.summaryFields || {};
 
   const columnHeaders: string[] = Array.isArray(parsed.columnHeaders) ? parsed.columnHeaders : [];
 
@@ -147,6 +174,7 @@ export async function POST(request: NextRequest) {
     bankName: parsed.bankName || 'Unknown',
     cardType,
     currency,
+    cardVariant: parsed.cardVariant || undefined,
     keywords: id.keywords || [],
     rowPattern: ts.rowPattern || '',
     groups: ts.groups || { date: 1, description: 2, amount: 3 },
@@ -155,7 +183,14 @@ export async function POST(request: NextRequest) {
     creditFlag: cr.creditFlag || undefined,
     periodFrom: sp.fromPattern || undefined,
     periodTo: sp.toPattern || undefined,
+    issuedDatePattern: sp.issuedDatePattern || undefined,
     dueDatePattern: sp.dueDatePattern || undefined,
+    cardVariantPattern: sf.cardVariantPattern || undefined,
+    creditLimitPattern: sf.creditLimitPattern || undefined,
+    availableCreditPattern: sf.availableCreditPattern || undefined,
+    minPaymentPattern: sf.minPaymentPattern || undefined,
+    totalOutstandingPattern: sf.totalOutstandingPattern || undefined,
+    totalAmountDuePattern: sf.totalAmountDuePattern || undefined,
     columnHeaders: columnHeaders.length ? columnHeaders : undefined,
   };
 
@@ -163,6 +198,7 @@ export async function POST(request: NextRequest) {
     bankName: parsed.bankName || 'Unknown',
     cardType,
     currency,
+    cardVariant: parsed.cardVariant || null,
     identification: {
       keywords: id.keywords || [],
       sampleLines: id.sampleLines || [],
@@ -170,11 +206,27 @@ export async function POST(request: NextRequest) {
     statementPeriod: {
       fromDate: sp.fromDate || null,
       toDate: sp.toDate || null,
+      issuedDate: sp.issuedDate || null,
       dueDate: sp.dueDate || null,
       fromPattern: sp.fromPattern || null,
       toPattern: sp.toPattern || null,
+      issuedDatePattern: sp.issuedDatePattern || null,
       dueDatePattern: sp.dueDatePattern || null,
       sampleLines: sp.sampleLines || [],
+    },
+    summaryFields: {
+      cardVariantPattern: sf.cardVariantPattern || null,
+      creditLimit: sf.creditLimit ?? null,
+      creditLimitPattern: sf.creditLimitPattern || null,
+      availableCredit: sf.availableCredit ?? null,
+      availableCreditPattern: sf.availableCreditPattern || null,
+      minPaymentDue: sf.minPaymentDue ?? null,
+      minPaymentPattern: sf.minPaymentPattern || null,
+      totalOutstanding: sf.totalOutstanding ?? null,
+      totalOutstandingPattern: sf.totalOutstandingPattern || null,
+      totalAmountDue: sf.totalAmountDue ?? null,
+      totalAmountDuePattern: sf.totalAmountDuePattern || null,
+      sampleLines: sf.sampleLines || [],
     },
     transactionStructure: {
       rowPattern: ts.rowPattern || '',

@@ -9,18 +9,25 @@ datasource db {
 }
 
 model Statement {
-  id          String    @id
-  userId      String
-  bank        String
-  from_date   DateTime?
-  to_date     DateTime?
-  card_type   String?
-  currency    String    @default("AED")
-  recordCount Int
-  totalDebit  Decimal
-  totalCredit Decimal
-  netChange   Decimal
-  createdAt   DateTime  @default(now())
+  id               String    @id
+  userId           String
+  bank             String
+  from_date        DateTime?
+  to_date          DateTime?
+  issued_date      DateTime?
+  card_type        String?
+  card_variant     String?
+  currency         String    @default("AED")
+  credit_limit     Decimal?
+  available_credit Decimal?
+  min_payment_due  Decimal?
+  total_outstanding Decimal?
+  total_amount_due Decimal?
+  recordCount      Int
+  totalDebit       Decimal
+  totalCredit      Decimal
+  netChange        Decimal
+  createdAt        DateTime  @default(now())
 
   transactions Transaction[]
 

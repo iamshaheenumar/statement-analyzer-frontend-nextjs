@@ -66,15 +66,14 @@ export default function ParsedList({ parsedList, onSelect, onDelete }: Props) {
                 </p>
                 <p className="text-xs text-text-muted mt-0.5 font-mono">
                   {item.summary.record_count} transactions
-                  <span className="mx-1.5">·</span>
-                  <span
-                    className={
-                      item.summary.net_change >= 0 ? "text-success" : "text-danger"
-                    }
-                  >
-                    {item.summary.net_change >= 0 ? "+" : ""}
-                    {item.summary.net_change.toFixed(2)} AED
-                  </span>
+                  {item.total_amount_due != null && (
+                    <>
+                      <span className="mx-1.5">·</span>
+                      <span className="text-danger">
+                        Due {item.total_amount_due.toFixed(2)} {item.currency || item.summary.currency || "AED"}
+                      </span>
+                    </>
+                  )}
                 </p>
               </div>
 

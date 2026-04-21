@@ -13,11 +13,23 @@ interface GuidedAnalysis {
   bankName: string;
   cardType: 'credit' | 'debit';
   currency: string;
+  cardVariant: string | null;
   columnHeaders?: string[];
   identification: { keywords: string[]; sampleLines: string[] };
   statementPeriod: {
-    fromDate: string | null; toDate: string | null; dueDate: string | null;
-    fromPattern: string | null; toPattern: string | null; dueDatePattern: string | null;
+    fromDate: string | null; toDate: string | null;
+    issuedDate: string | null; dueDate: string | null;
+    fromPattern: string | null; toPattern: string | null;
+    issuedDatePattern: string | null; dueDatePattern: string | null;
+    sampleLines: string[];
+  };
+  summaryFields: {
+    cardVariantPattern: string | null;
+    creditLimit: number | null; creditLimitPattern: string | null;
+    availableCredit: number | null; availableCreditPattern: string | null;
+    minPaymentDue: number | null; minPaymentPattern: string | null;
+    totalOutstanding: number | null; totalOutstandingPattern: string | null;
+    totalAmountDue: number | null; totalAmountDuePattern: string | null;
     sampleLines: string[];
   };
   transactionStructure: {
@@ -33,12 +45,13 @@ interface GuidedAnalysis {
   transactions: Array<{ transaction_date: string; description: string; debit: number; credit: number; currency: string }>;
 }
 
-type WizardStep = 'upload' | 'bank' | 'dates' | 'transactions' | 'rules' | 'preview';
+type WizardStep = 'upload' | 'bank' | 'dates' | 'summary' | 'transactions' | 'rules' | 'preview';
 
 const STEPS: { id: WizardStep; label: string }[] = [
   { id: 'upload', label: 'Upload' },
   { id: 'bank', label: 'Bank Identity' },
   { id: 'dates', label: 'Statement Dates' },
+  { id: 'summary', label: 'Summary Fields' },
   { id: 'transactions', label: 'Transaction Pattern' },
   { id: 'rules', label: 'Dr / Cr Rules' },
   { id: 'preview', label: 'Preview & Save' },
@@ -252,35 +265,40 @@ function BankStep({
 
 function DatesStep({
   analysis,
-  fromDate, setFromDate, toDate, setToDate, dueDate, setDueDate,
+  fromDate, setFromDate, toDate, setToDate, issuedDate, setIssuedDate, dueDate, setDueDate,
   fromPattern, setFromPattern, toPattern, setToPattern,
-  dueDatePattern, setDueDatePattern,
+  issuedDatePattern, setIssuedDatePattern, dueDatePattern, setDueDatePattern,
   onBack, onNext,
 }: {
   analysis: GuidedAnalysis;
   fromDate: string; setFromDate: (v: string) => void;
   toDate: string; setToDate: (v: string) => void;
+  issuedDate: string; setIssuedDate: (v: string) => void;
   dueDate: string; setDueDate: (v: string) => void;
   fromPattern: string; setFromPattern: (v: string) => void;
   toPattern: string; setToPattern: (v: string) => void;
+  issuedDatePattern: string; setIssuedDatePattern: (v: string) => void;
   dueDatePattern: string; setDueDatePattern: (v: string) => void;
   onBack: () => void; onNext: () => void;
 }) {
   return (
     <div className="space-y-4">
-      <AiNote text="AI extracted the statement period and due date. The regex patterns are used to pull these from any future statement of this type." />
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <AiNote text="AI extracted the statement dates. The regex patterns are used to pull these from any future statement of this type." />
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Field label="Statement From">
           <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className={BASE} />
         </Field>
         <Field label="Statement To">
           <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className={BASE} />
         </Field>
+        <Field label="Issued Date">
+          <input type="date" value={issuedDate} onChange={(e) => setIssuedDate(e.target.value)} className={BASE} />
+        </Field>
         <Field label="Payment Due Date">
           <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className={BASE} />
         </Field>
       </div>
-      <Field label="From Date Regex" hint="Group 1 must capture the from-date string. Leave blank if not present.">
+      <Field label="From Date Regex" hint="Group 1 must capture the from-date string.">
         <input value={fromPattern} onChange={(e) => setFromPattern(e.target.value)}
           className={MONO} placeholder={`Statement From\\s*([\\d/]+)`} />
       </Field>
@@ -288,11 +306,91 @@ function DatesStep({
         <input value={toPattern} onChange={(e) => setToPattern(e.target.value)}
           className={MONO} placeholder={`Statement To\\s*([\\d/]+)`} />
       </Field>
+      <Field label="Issued Date Regex" hint="Optional. Group 1 captures the statement issue date.">
+        <input value={issuedDatePattern} onChange={(e) => setIssuedDatePattern(e.target.value)}
+          className={MONO} placeholder={`Statement Date\\s*([\\d/]+)`} />
+      </Field>
       <Field label="Due Date Regex" hint="Optional. Group 1 captures the payment due date.">
         <input value={dueDatePattern} onChange={(e) => setDueDatePattern(e.target.value)}
           className={MONO} placeholder={`Payment Due.*?([\\d/]+)`} />
       </Field>
       <SampleBox lines={analysis.statementPeriod.sampleLines} label="Sample lines containing these dates" />
+      <NavButtons onBack={onBack} onNext={onNext} />
+    </div>
+  );
+}
+
+function SummaryStep({
+  analysis, cardType,
+  cardVariant, setCardVariant, cardVariantPattern, setCardVariantPattern,
+  creditLimitPattern, setCreditLimitPattern,
+  availableCreditPattern, setAvailableCreditPattern,
+  minPaymentPattern, setMinPaymentPattern,
+  totalOutstandingPattern, setTotalOutstandingPattern,
+  totalAmountDuePattern, setTotalAmountDuePattern,
+  onBack, onNext,
+}: {
+  analysis: GuidedAnalysis;
+  cardType: 'credit' | 'debit';
+  cardVariant: string; setCardVariant: (v: string) => void;
+  cardVariantPattern: string; setCardVariantPattern: (v: string) => void;
+  creditLimitPattern: string; setCreditLimitPattern: (v: string) => void;
+  availableCreditPattern: string; setAvailableCreditPattern: (v: string) => void;
+  minPaymentPattern: string; setMinPaymentPattern: (v: string) => void;
+  totalOutstandingPattern: string; setTotalOutstandingPattern: (v: string) => void;
+  totalAmountDuePattern: string; setTotalAmountDuePattern: (v: string) => void;
+  onBack: () => void; onNext: () => void;
+}) {
+  const sf = analysis.summaryFields;
+  return (
+    <div className="space-y-4">
+      <AiNote text="These regex patterns extract summary values from the statement header. Group 1 in each pattern must capture the numeric value (digits, commas, decimal point only)." />
+
+      <Field label="Card Variant" hint="The specific card product name (e.g. Titanium Credit Card). Used for tier-1 parser matching.">
+        <input value={cardVariant} onChange={(e) => setCardVariant(e.target.value)}
+          className={BASE} placeholder="Titanium Credit Card" />
+      </Field>
+      <Field label="Card Variant Regex" hint="Optional. Group 1 captures the card variant name from the PDF.">
+        <input value={cardVariantPattern} onChange={(e) => setCardVariantPattern(e.target.value)}
+          className={MONO} placeholder={`Product Name\\s*(.+)`} />
+      </Field>
+
+      {cardType === 'credit' && (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field label="Credit Limit Regex" hint="Group 1 = amount digits only (e.g. 50,000.00)">
+              <input value={creditLimitPattern} onChange={(e) => setCreditLimitPattern(e.target.value)}
+                className={MONO} placeholder={`Credit Limit\\s*([\\d,\\.]+)`} />
+              {sf.creditLimit != null && <p className="text-xs text-success mt-1">AI found: {sf.creditLimit.toLocaleString()}</p>}
+            </Field>
+            <Field label="Available Credit Regex">
+              <input value={availableCreditPattern} onChange={(e) => setAvailableCreditPattern(e.target.value)}
+                className={MONO} placeholder={`Available Credit\\s*([\\d,\\.]+)`} />
+              {sf.availableCredit != null && <p className="text-xs text-success mt-1">AI found: {sf.availableCredit.toLocaleString()}</p>}
+            </Field>
+          </div>
+        </>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <Field label="Min Payment Due Regex">
+          <input value={minPaymentPattern} onChange={(e) => setMinPaymentPattern(e.target.value)}
+            className={MONO} placeholder={`Minimum.*?([\\d,\\.]+)`} />
+          {sf.minPaymentDue != null && <p className="text-xs text-success mt-1">AI found: {sf.minPaymentDue.toLocaleString()}</p>}
+        </Field>
+        <Field label="Total Outstanding Regex">
+          <input value={totalOutstandingPattern} onChange={(e) => setTotalOutstandingPattern(e.target.value)}
+            className={MONO} placeholder={`Outstanding.*?([\\d,\\.]+)`} />
+          {sf.totalOutstanding != null && <p className="text-xs text-success mt-1">AI found: {sf.totalOutstanding.toLocaleString()}</p>}
+        </Field>
+        <Field label="Total Amount Due Regex">
+          <input value={totalAmountDuePattern} onChange={(e) => setTotalAmountDuePattern(e.target.value)}
+            className={MONO} placeholder={`Total Amount Due.*?([\\d,\\.]+)`} />
+          {sf.totalAmountDue != null && <p className="text-xs text-success mt-1">AI found: {sf.totalAmountDue.toLocaleString()}</p>}
+        </Field>
+      </div>
+
+      <SampleBox lines={sf.sampleLines} label="Sample lines containing these summary values" />
       <NavButtons onBack={onBack} onNext={onNext} />
     </div>
   );
@@ -598,10 +696,20 @@ export default function CreateParserWizard({
 
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+  const [issuedDate, setIssuedDate] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [fromPattern, setFromPattern] = useState('');
   const [toPattern, setToPattern] = useState('');
+  const [issuedDatePattern, setIssuedDatePattern] = useState('');
   const [dueDatePattern, setDueDatePattern] = useState('');
+
+  const [cardVariant, setCardVariant] = useState('');
+  const [cardVariantPattern, setCardVariantPattern] = useState('');
+  const [creditLimitPattern, setCreditLimitPattern] = useState('');
+  const [availableCreditPattern, setAvailableCreditPattern] = useState('');
+  const [minPaymentPattern, setMinPaymentPattern] = useState('');
+  const [totalOutstandingPattern, setTotalOutstandingPattern] = useState('');
+  const [totalAmountDuePattern, setTotalAmountDuePattern] = useState('');
 
   const [rowPattern, setRowPattern] = useState('');
   const [groupDate, setGroupDate] = useState('1');
@@ -632,13 +740,23 @@ export default function CreateParserWizard({
     setBankName(a.bankName);
     setCardType(a.cardType);
     setCurrency(a.currency);
+    setCardVariant(a.cardVariant || '');
     setKeywords(a.identification.keywords.join(', '));
     setFromDate(a.statementPeriod.fromDate || '');
     setToDate(a.statementPeriod.toDate || '');
+    setIssuedDate(a.statementPeriod.issuedDate || '');
     setDueDate(a.statementPeriod.dueDate || '');
     setFromPattern(a.statementPeriod.fromPattern || '');
     setToPattern(a.statementPeriod.toPattern || '');
+    setIssuedDatePattern(a.statementPeriod.issuedDatePattern || '');
     setDueDatePattern(a.statementPeriod.dueDatePattern || '');
+    const sf = a.summaryFields;
+    setCardVariantPattern(sf.cardVariantPattern || '');
+    setCreditLimitPattern(sf.creditLimitPattern || '');
+    setAvailableCreditPattern(sf.availableCreditPattern || '');
+    setMinPaymentPattern(sf.minPaymentPattern || '');
+    setTotalOutstandingPattern(sf.totalOutstandingPattern || '');
+    setTotalAmountDuePattern(sf.totalAmountDuePattern || '');
     setRowPattern(a.transactionStructure.rowPattern);
     setGroupDate(String(a.transactionStructure.groups.date));
     setGroupDesc(String(a.transactionStructure.groups.description));
@@ -694,6 +812,7 @@ export default function CreateParserWizard({
       bankName,
       cardType,
       currency: currency || 'AED',
+      cardVariant: cardVariant.trim() || undefined,
       keywords: keywords.split(',').map(k => k.trim()).filter(Boolean),
       keywordsPage: keywordsPageMode === 'page1' ? 1 : undefined,
       rowPattern,
@@ -703,7 +822,14 @@ export default function CreateParserWizard({
       creditFlag: creditFlag || undefined,
       periodFrom: fromPattern || undefined,
       periodTo: toPattern || undefined,
+      issuedDatePattern: issuedDatePattern || undefined,
       dueDatePattern: dueDatePattern || undefined,
+      cardVariantPattern: cardVariantPattern || undefined,
+      creditLimitPattern: creditLimitPattern || undefined,
+      availableCreditPattern: availableCreditPattern || undefined,
+      minPaymentPattern: minPaymentPattern || undefined,
+      totalOutstandingPattern: totalOutstandingPattern || undefined,
+      totalAmountDuePattern: totalAmountDuePattern || undefined,
       columnHeaders: parsedColumnHeaders.length ? parsedColumnHeaders : undefined,
     };
   }
@@ -782,10 +908,26 @@ export default function CreateParserWizard({
             analysis={analysis}
             fromDate={fromDate} setFromDate={setFromDate}
             toDate={toDate} setToDate={setToDate}
+            issuedDate={issuedDate} setIssuedDate={setIssuedDate}
             dueDate={dueDate} setDueDate={setDueDate}
             fromPattern={fromPattern} setFromPattern={setFromPattern}
             toPattern={toPattern} setToPattern={setToPattern}
+            issuedDatePattern={issuedDatePattern} setIssuedDatePattern={setIssuedDatePattern}
             dueDatePattern={dueDatePattern} setDueDatePattern={setDueDatePattern}
+            onBack={goBack} onNext={goNext}
+          />
+        )}
+        {!autoAnalyzing && step === 'summary' && analysis && (
+          <SummaryStep
+            analysis={analysis}
+            cardType={cardType}
+            cardVariant={cardVariant} setCardVariant={setCardVariant}
+            cardVariantPattern={cardVariantPattern} setCardVariantPattern={setCardVariantPattern}
+            creditLimitPattern={creditLimitPattern} setCreditLimitPattern={setCreditLimitPattern}
+            availableCreditPattern={availableCreditPattern} setAvailableCreditPattern={setAvailableCreditPattern}
+            minPaymentPattern={minPaymentPattern} setMinPaymentPattern={setMinPaymentPattern}
+            totalOutstandingPattern={totalOutstandingPattern} setTotalOutstandingPattern={setTotalOutstandingPattern}
+            totalAmountDuePattern={totalAmountDuePattern} setTotalAmountDuePattern={setTotalAmountDuePattern}
             onBack={goBack} onNext={goNext}
           />
         )}
