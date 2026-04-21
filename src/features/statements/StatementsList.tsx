@@ -85,7 +85,7 @@ export default function StatementsList({ items }: Props) {
           {items.map((item) => (
             <motion.li key={item.id} className="group flex items-stretch" variants={fadeSlideUp}>
               <a
-                href={`/view-saved?id=${item.id}`}
+                href={`/statements/${item.id}`}
                 className="flex-1 min-w-0 px-4 sm:px-5 py-4 hover:bg-elevated transition-colors duration-100"
               >
                 {/* Top row */}

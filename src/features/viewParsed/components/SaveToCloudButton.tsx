@@ -50,7 +50,7 @@ export default function SaveToCloudButton({ parsedData, className }: Props) {
       }
       await deleteParsed(parsedData.id);
       toast.success("Saved to cloud");
-      router.push("/statements");
+      router.push(`/statements/${result.id}`);
     });
   };
 

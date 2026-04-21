@@ -7,15 +7,7 @@ import SummaryCards from "@/features/dashboard/SummaryCards";
 import Charts from "@/features/dashboard/Charts";
 import TransactionsTable from "@/features/dashboard/TransactionsTable";
 
-const expenseCategoryColors = {
-  Food: "#3B82F6",
-  Shopping: "#8B5CF6",
-  Transportation: "#10B981",
-  Entertainment: "#F59E0B",
-  Bills: "#EF4444",
-  Healthcare: "#EC4899",
-  Others: "#6B7280",
-} as const;
+const FALLBACK_COLOR = "#6B7280";
 
 type AvailableMonth = { month: string; year: string };
 type TransactionType = "Credit" | "Debit" | "Neutral";
@@ -63,6 +55,7 @@ async function getData(userId: string, month?: string, year?: string) {
       transactionDate: { gte: startDate, lte: endDate },
       statement: { userId },
     },
+    include: { category: true },
     orderBy: { transactionDate: "desc" },
   });
 
@@ -82,21 +75,19 @@ async function getData(userId: string, month?: string, year?: string) {
     transactions
       .filter((tx) => tx.debit && Number(tx.debit) > 0)
       .reduce((acc, tx) => {
-        const category = tx.description?.split(" ")[0] || "Others";
+        const name = tx.category?.name || "Others";
+        const color = tx.category?.color || FALLBACK_COLOR;
         const amount = Number(tx.debit || 0);
-        acc.set(category, (acc.get(category) || 0) + amount);
+        const existing = acc.get(name);
+        acc.set(name, { amount: (existing?.amount || 0) + amount, color });
         return acc;
-      }, new Map<string, number>())
-  ).map(([name, amount]) => ({
-    name,
-    amount,
-    color: (expenseCategoryColors as Record<string, string>)[name] || expenseCategoryColors.Others,
-  }));
+      }, new Map<string, { amount: number; color: string }>())
+  ).map(([name, { amount, color }]) => ({ name, amount, color }));
 
   const formattedTransactions: DashboardTransaction[] = transactions.map((tx) => ({
     date: tx.transactionDate?.toISOString().split("T")[0] || "",
     description: tx.description || "",
-    category: tx.description?.split(" ")[0] || "Others",
+    category: tx.category?.name || "Others",
     amount:
       tx.credit && Number(tx.credit) > 0
         ? Number(tx.credit)

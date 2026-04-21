@@ -121,3 +121,65 @@ export async function createAdminParserAction(data: {
   revalidatePath("/admin/parsers");
   revalidatePath("/parsers");
 }
+
+// ── Category admin actions ────────────────────────────────────────────────────
+
+export async function createSystemCategoryAction(name: string, color: string) {
+  await requireAdmin();
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error("Name is required");
+
+  const existing = await prisma.category.findFirst({
+    where: { userId: null, name: { equals: trimmed, mode: "insensitive" } },
+  });
+  if (existing) return { error: "Category already exists" };
+
+  const category = await prisma.category.create({
+    data: { userId: null, name: trimmed, color, isSystem: true },
+  });
+
+  revalidatePath("/admin/categories");
+  revalidatePath("/settings/categories");
+  revalidatePath("/dashboard");
+  return { category };
+}
+
+export async function updateSystemCategoryAction(id: string, name: string, color: string) {
+  await requireAdmin();
+  const category = await prisma.category.update({
+    where: { id },
+    data: { name: name.trim(), color },
+  });
+  revalidatePath("/admin/categories");
+  revalidatePath("/settings/categories");
+  revalidatePath("/dashboard");
+  return { category };
+}
+
+export async function deleteSystemCategoryAction(id: string) {
+  await requireAdmin();
+  await prisma.transaction.updateMany({ where: { categoryId: id }, data: { categoryId: null } });
+  await prisma.descriptionCategoryMap.deleteMany({ where: { categoryId: id } });
+  await prisma.category.delete({ where: { id } });
+  revalidatePath("/admin/categories");
+  revalidatePath("/settings/categories");
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
+export async function updateGlobalMappingAction(id: string, categoryId: string) {
+  await requireAdmin();
+  await prisma.descriptionCategoryMap.update({
+    where: { id },
+    data: { categoryId, source: "admin" },
+  });
+  revalidatePath("/admin/categories");
+  return { success: true };
+}
+
+export async function deleteGlobalMappingAction(id: string) {
+  await requireAdmin();
+  await prisma.descriptionCategoryMap.delete({ where: { id } });
+  revalidatePath("/admin/categories");
+  return { success: true };
+}

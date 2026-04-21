@@ -38,6 +38,9 @@ model Transaction {
   credit          Decimal?
   amount          Decimal?
   bank            String?
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
 }
 
 model BankCard {
@@ -70,4 +73,32 @@ model ParserConfig {
 model AdminSetting {
   key   String @id
   value Json
+}
+
+model Category {
+  id        String   @id @default(uuid())
+  userId    String?
+  name      String
+  color     String
+  icon      String?
+  isSystem  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  transactions Transaction[]
+  mappings     DescriptionCategoryMap[]
+
+  @@index([userId])
+}
+
+model DescriptionCategoryMap {
+  id          String   @id @default(uuid())
+  userId      String?
+  description String
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  source      String   @default("ai")
+  createdAt   DateTime @default(now())
+
+  @@index([userId, description])
+  @@index([description])
 }

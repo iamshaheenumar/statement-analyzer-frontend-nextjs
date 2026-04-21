@@ -27,6 +27,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             >
               Parsers
             </Link>
+            <Link
+              href="/admin/categories"
+              className="px-3 py-1.5 text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-elevated rounded-lg transition-colors"
+            >
+              Categories
+            </Link>
           </nav>
           <button
             onClick={handleSignOut}

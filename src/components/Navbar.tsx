@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BarChart2, LayoutDashboard, ClipboardList, Upload, LogOut, LogIn, CreditCard, Sparkles, Building2, Sun, Moon, Monitor } from "lucide-react";
+import { BarChart2, LayoutDashboard, ClipboardList, Upload, LogOut, LogIn, CreditCard, Sparkles, Building2, Sun, Moon, Monitor, Tag } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -15,6 +15,7 @@ const AUTHED_LINKS = [
   { href: "/parsers", label: "Parsers", icon: Sparkles },
   { href: "/banks", label: "Banks", icon: Building2 },
   { href: "/upload", label: "Upload", icon: Upload },
+  { href: "/settings/categories", label: "Categories", icon: Tag },
 ];
 
 const GUEST_LINKS = [

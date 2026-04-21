@@ -7,6 +7,7 @@ import type {
   Transaction as DashboardTransaction,
 } from "@/features/dashboard/types";
 import { Prisma as PrismaNS } from "@prisma/client";
+import { categorizeDescriptions } from "@/lib/categorize";
 
 type ParsedData = DashboardParsedData & { id?: string };
 type Transaction = DashboardTransaction;
@@ -26,6 +27,12 @@ export async function saveStatementAction(data: ParsedData) {
 
     const statementId = id || crypto.randomUUID();
     const settlementCurrency = currency || summary.currency || 'AED';
+
+    // Categorize descriptions BEFORE the Prisma transaction (AI calls must not be inside it)
+    const descriptions = transactions
+      .map((t: Transaction) => t.description)
+      .filter((d): d is string => !!d);
+    const categoryMap = await categorizeDescriptions(descriptions, user.id);
 
     await prisma.$transaction(async (tx) => {
       await tx.statement.upsert({
@@ -68,6 +75,9 @@ export async function saveStatementAction(data: ParsedData) {
             credit: (t.credit as any) ?? null,
             amount: (t.amount as any) ?? null,
             bank: t.bank || bank,
+            categoryId: t.description
+              ? (categoryMap.get(t.description.trim().toLowerCase()) ?? null)
+              : null,
           })),
         });
       }

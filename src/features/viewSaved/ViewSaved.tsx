@@ -1,7 +1,7 @@
 import prisma from "@/services/prisma";
 import { getUser } from "@/lib/supabase/server";
 import SavedHeader from "./components/SavedHeader";
-import TransactionsTable from "../viewParsed/components/TransactionsTable";
+import TransactionsTable from "./components/TransactionsTable";
 import { AlertCircle } from "lucide-react";
 
 type Props = { id: string };
@@ -15,6 +15,7 @@ async function getStatement(id: string, userId: string) {
 
   const transactions = await prisma.transaction.findMany({
     where: { statementId: id },
+    include: { category: true },
     orderBy: { transactionDate: "asc" },
   });
 
@@ -25,6 +26,7 @@ async function getStatement(id: string, userId: string) {
     card_type: statement.card_type,
     from_date: statement.from_date,
     to_date: statement.to_date,
+    currency: statement.currency,
     summary: {
       record_count: statement.recordCount,
       total_debit: Number(statement.totalDebit),
@@ -35,17 +37,28 @@ async function getStatement(id: string, userId: string) {
       id: t.id,
       transaction_date: t.transactionDate,
       description: t.description,
-      debit: Number(t.debit) ?? null,
-      credit: Number(t.credit) ?? null,
-      amount: Number(t.amount) ?? null,
+      debit: t.debit ? Number(t.debit) : null,
+      credit: t.credit ? Number(t.credit) : null,
+      amount: t.amount ? Number(t.amount) : null,
       bank: t.bank,
+      categoryId: t.categoryId,
+      category: t.category
+        ? { id: t.category.id, name: t.category.name, color: t.category.color }
+        : null,
     })),
   };
 }
 
 export default async function ViewSaved({ id }: Props) {
   const user = await getUser();
-  const statement = await getStatement(id, user!.id);
+
+  const [statement, allCategories] = await Promise.all([
+    getStatement(id, user!.id),
+    prisma.category.findMany({
+      where: { OR: [{ userId: null }, { userId: user!.id }] },
+      orderBy: [{ isSystem: "desc" }, { name: "asc" }],
+    }),
+  ]);
 
   if (!statement) {
     return (
@@ -64,7 +77,15 @@ export default async function ViewSaved({ id }: Props) {
   return (
     <div className="space-y-4">
       <SavedHeader statement={statement} />
-      <TransactionsTable transactions={statement.transactions} />
+      <TransactionsTable
+        transactions={statement.transactions}
+        allCategories={allCategories.map((c) => ({
+          id: c.id,
+          name: c.name,
+          color: c.color,
+        }))}
+        currency={statement.currency}
+      />
     </div>
   );
 }
