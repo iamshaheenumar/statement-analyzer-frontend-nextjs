@@ -106,7 +106,7 @@ function SystemCategoriesSection({ categories: initial }: { categories: Category
       if (result && "error" in result) {
         toast.error(result.error);
       } else if (result && "category" in result && result.category) {
-        const cat = result.category as CategoryRow;
+        const cat = result.category as unknown as CategoryRow;
         setCategories((prev) => [...prev, { ...cat, createdAt: new Date().toISOString() }]);
         setNewName("");
         setNewColor("#6366f1");
