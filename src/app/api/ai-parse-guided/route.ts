@@ -49,6 +49,8 @@ Return ONLY valid JSON — no markdown, no explanation, no code fences.
     "sampleDebitLines": ["up to 2 actual debit/purchase transaction lines"]
   },
 
+  "columnHeaders": ["Date", "Description", "Amount (AED)", "..."],
+
   "transactions": [
     {
       "transaction_date": "YYYY-MM-DD",
@@ -69,7 +71,8 @@ CRITICAL RULES:
 - Extract ALL transactions: purchases, payments, fees, interest, reversals
 - All dates in YYYY-MM-DD format
 - Amounts as plain decimals — no currency symbols, no commas
-- sampleMatchedLines and sampleUnmatchedLines must be copied verbatim from the statement text`;
+- sampleMatchedLines and sampleUnmatchedLines must be copied verbatim from the statement text
+- columnHeaders: the exact column header names as they appear in the statement's transaction table (e.g. ["Date", "Transaction Description", "Transaction Currency", "Transaction Amount", "FX Rate", "Total Amount (AED)"])`;
 
 export async function POST(request: NextRequest) {
   if (!process.env.ANTHROPIC_API_KEY) {
@@ -138,6 +141,8 @@ export async function POST(request: NextRequest) {
   const sp = parsed.statementPeriod || {};
   const id = parsed.identification || {};
 
+  const columnHeaders: string[] = Array.isArray(parsed.columnHeaders) ? parsed.columnHeaders : [];
+
   const suggestedConfig: ParserConfigData = {
     bankName: parsed.bankName || 'Unknown',
     cardType,
@@ -151,6 +156,7 @@ export async function POST(request: NextRequest) {
     periodFrom: sp.fromPattern || undefined,
     periodTo: sp.toPattern || undefined,
     dueDatePattern: sp.dueDatePattern || undefined,
+    columnHeaders: columnHeaders.length ? columnHeaders : undefined,
   };
 
   return NextResponse.json({
@@ -185,5 +191,6 @@ export async function POST(request: NextRequest) {
     },
     transactions,
     suggestedConfig,
+    columnHeaders,
   });
 }

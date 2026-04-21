@@ -35,7 +35,8 @@ export async function updateParserRulesAction(
   creditKeywords: string[],
   creditFlag: string,
   keywordsPage: number | undefined,
-  detectionKeywords: string[]
+  detectionKeywords: string[],
+  columnHeaders?: string[]
 ) {
   await requireAdmin();
   const existing = await prisma.parserConfig.findUnique({ where: { id } });
@@ -50,6 +51,9 @@ export async function updateParserRulesAction(
     updatedConfig.keywordsPage = keywordsPage;
   } else {
     delete updatedConfig.keywordsPage;
+  }
+  if (columnHeaders !== undefined) {
+    updatedConfig.columnHeaders = columnHeaders.length ? columnHeaders : null;
   }
 
   await prisma.parserConfig.update({
@@ -102,6 +106,8 @@ export async function createAdminParserAction(data: {
   bank: string;
   keywords: string[];
   config: ParserConfigData;
+  rawPageContent?: Array<{ page: number; lines: string[]; text: string }>;
+  pendingSubmissionId?: string;
 }) {
   await requireAdmin();
 
@@ -115,8 +121,13 @@ export async function createAdminParserAction(data: {
       source: "admin",
       active: true,
       status: "approved",
+      ...(data.rawPageContent ? { rawPageContent: data.rawPageContent as any } : {}),
     },
   });
+
+  if (data.pendingSubmissionId) {
+    await prisma.parserConfig.delete({ where: { id: data.pendingSubmissionId } });
+  }
 
   revalidatePath("/admin/parsers");
   revalidatePath("/parsers");

@@ -30,6 +30,9 @@ export interface ParseResult {
   due_date?: string | null;
   summary: StatementSummary;
   transactions: Transaction[];
+  originalHeaders?: string[];  // Column labels from the original statement (in regex group order)
+  rawRows?: string[][];        // rawRows[i] = all captured groups for transaction i
+  rawPageContent?: PageContent[];  // Full extracted PDF pages — only set for unknown-bank (generic) results
 }
 
 /** One page of extracted PDF content. */

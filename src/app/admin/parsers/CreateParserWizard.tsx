@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useEffect, useTransition } from 'react';
 import { toast } from 'sonner';
 import {
   Upload, Loader2, Bot, Check, ChevronRight, ChevronLeft,
@@ -13,6 +13,7 @@ interface GuidedAnalysis {
   bankName: string;
   cardType: 'credit' | 'debit';
   currency: string;
+  columnHeaders?: string[];
   identification: { keywords: string[]; sampleLines: string[] };
   statementPeriod: {
     fromDate: string | null; toDate: string | null; dueDate: string | null;
@@ -304,6 +305,7 @@ function TransactionsStep({
   groupDate, setGroupDate, groupDesc, setGroupDesc,
   groupAmount, setGroupAmount, groupCreditFlag, setGroupCreditFlag,
   dateFormat, setDateFormat,
+  columnHeaders, setColumnHeaders,
   onBack, onNext,
 }: {
   analysis: GuidedAnalysis;
@@ -314,6 +316,7 @@ function TransactionsStep({
   groupAmount: string; setGroupAmount: (v: string) => void;
   groupCreditFlag: string; setGroupCreditFlag: (v: string) => void;
   dateFormat: string; setDateFormat: (v: string) => void;
+  columnHeaders: string; setColumnHeaders: (v: string) => void;
   onBack: () => void; onNext: () => void;
 }) {
   const allSamples = [
@@ -456,6 +459,15 @@ function TransactionsStep({
           className={MONO} placeholder="DD/MM/YYYY" />
       </Field>
 
+      <Field
+        label="Column Headers"
+        hint="Comma-separated names for each capture group in order (e.g. Date, Description, Currency, Amount, FX Rate, Total AED). These are shown as-is in the statement table view."
+      >
+        <input value={columnHeaders} onChange={(e) => setColumnHeaders(e.target.value)}
+          className={BASE}
+          placeholder="Date, Transaction Description, Transaction Currency, Transaction Amount, FX Rate, Total Amount (AED)" />
+      </Field>
+
       <NavButtons onBack={onBack} onNext={onNext} nextDisabled={!rowPattern.trim() || !!regexError} />
     </div>
   );
@@ -563,8 +575,16 @@ function PreviewStep({
   );
 }
 
-export default function CreateParserWizard({ onClose }: { onClose: () => void }) {
-  const [step, setStep] = useState<WizardStep>('upload');
+export default function CreateParserWizard({
+  onClose,
+  initialPages,
+  pendingSubmissionId,
+}: {
+  onClose: () => void;
+  initialPages?: Array<{ page: number; lines: string[] }>;
+  pendingSubmissionId?: string;
+}) {
+  const [step, setStep] = useState<WizardStep>(initialPages ? 'bank' : 'upload');
   const [file, setFile] = useState<File | null>(null);
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -592,9 +612,21 @@ export default function CreateParserWizard({ onClose }: { onClose: () => void })
 
   const [creditFlag, setCreditFlag] = useState('');
   const [creditKeywords, setCreditKeywords] = useState('');
+  const [columnHeaders, setColumnHeaders] = useState('');
 
-  const [pdfPages, setPdfPages] = useState<Array<{ page: number; lines: string[] }>>([]);
+  const [pdfPages, setPdfPages] = useState<Array<{ page: number; lines: string[] }>>(initialPages ?? []);
   const [saving, startSave] = useTransition();
+
+  const [autoAnalyzing, setAutoAnalyzing] = useState(!!initialPages);
+
+  useEffect(() => {
+    if (!initialPages) return;
+    setAutoAnalyzing(true);
+    runAiAnalysis(initialPages)
+      .catch(() => toast.error('AI analysis failed. Please try again.'))
+      .finally(() => setAutoAnalyzing(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function populate(a: GuidedAnalysis) {
     setBankName(a.bankName);
@@ -616,6 +648,7 @@ export default function CreateParserWizard({ onClose }: { onClose: () => void })
     setDateFormat(a.transactionStructure.dateFormat);
     setCreditFlag(a.creditDebitRules.creditFlag || '');
     setCreditKeywords(a.creditDebitRules.creditKeywords.join(', '));
+    if (a.columnHeaders?.length) setColumnHeaders(a.columnHeaders.join(', '));
   }
 
   async function handleAnalyze() {
@@ -625,24 +658,28 @@ export default function CreateParserWizard({ onClose }: { onClose: () => void })
       const { extractPdfPages } = await import('@/services/parsePDF');
       const extractedPages = await extractPdfPages(file, password || undefined);
       setPdfPages(extractedPages);
-      const res = await fetch('/api/ai-parse-guided', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pages: extractedPages }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data?.error ?? 'Analysis failed');
-      }
-      const data: GuidedAnalysis = await res.json();
-      setAnalysis(data);
-      populate(data);
-      setStep('bank');
+      await runAiAnalysis(extractedPages);
     } catch (err: unknown) {
       toast.error(`Analysis failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
+  }
+
+  async function runAiAnalysis(pages: Array<{ page: number; lines: string[] }>) {
+    const res = await fetch('/api/ai-parse-guided', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pages }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data?.error ?? 'Analysis failed');
+    }
+    const data: GuidedAnalysis = await res.json();
+    setAnalysis(data);
+    populate(data);
+    setStep('bank');
   }
 
   function buildConfig(): ParserConfigData {
@@ -652,6 +689,7 @@ export default function CreateParserWizard({ onClose }: { onClose: () => void })
       amount: parseInt(groupAmount) || 3,
     };
     if (groupCreditFlag) g.creditFlag = parseInt(groupCreditFlag);
+    const parsedColumnHeaders = columnHeaders.split(',').map(h => h.trim()).filter(Boolean);
     return {
       bankName,
       cardType,
@@ -666,6 +704,7 @@ export default function CreateParserWizard({ onClose }: { onClose: () => void })
       periodFrom: fromPattern || undefined,
       periodTo: toPattern || undefined,
       dueDatePattern: dueDatePattern || undefined,
+      columnHeaders: parsedColumnHeaders.length ? parsedColumnHeaders : undefined,
     };
   }
 
@@ -673,7 +712,13 @@ export default function CreateParserWizard({ onClose }: { onClose: () => void })
     const config = buildConfig();
     startSave(async () => {
       try {
-        await createAdminParserAction({ bank: bankName, keywords: config.keywords, config });
+        await createAdminParserAction({
+          bank: bankName,
+          keywords: config.keywords,
+          config,
+          rawPageContent: pdfPages.map(p => ({ ...p, text: p.lines.join('\n') })),
+          pendingSubmissionId,
+        });
         toast.success(`Parser for "${bankName}" created and activated.`);
         onClose();
       } catch (err: unknown) {
@@ -708,14 +753,20 @@ export default function CreateParserWizard({ onClose }: { onClose: () => void })
       </div>
 
       <div className="px-6 pb-6">
-        {step === 'upload' && (
+        {autoAnalyzing && (
+          <div className="flex items-center justify-center gap-3 py-12">
+            <Loader2 className="w-5 h-5 text-accent animate-spin" />
+            <p className="text-sm text-text-secondary">Analyzing submitted statement with AI…</p>
+          </div>
+        )}
+        {!autoAnalyzing && step === 'upload' && (
           <UploadStep
             file={file} setFile={setFile}
             password={password} setPassword={setPassword}
             loading={loading} onAnalyze={handleAnalyze}
           />
         )}
-        {step === 'bank' && analysis && (
+        {!autoAnalyzing && step === 'bank' && analysis && (
           <BankStep
             analysis={analysis}
             bankName={bankName} setBankName={setBankName}
@@ -726,7 +777,7 @@ export default function CreateParserWizard({ onClose }: { onClose: () => void })
             onBack={goBack} onNext={goNext}
           />
         )}
-        {step === 'dates' && analysis && (
+        {!autoAnalyzing && step === 'dates' && analysis && (
           <DatesStep
             analysis={analysis}
             fromDate={fromDate} setFromDate={setFromDate}
@@ -738,7 +789,7 @@ export default function CreateParserWizard({ onClose }: { onClose: () => void })
             onBack={goBack} onNext={goNext}
           />
         )}
-        {step === 'transactions' && analysis && (
+        {!autoAnalyzing && step === 'transactions' && analysis && (
           <TransactionsStep
             analysis={analysis}
             pdfPages={pdfPages}
@@ -748,10 +799,11 @@ export default function CreateParserWizard({ onClose }: { onClose: () => void })
             groupAmount={groupAmount} setGroupAmount={setGroupAmount}
             groupCreditFlag={groupCreditFlag} setGroupCreditFlag={setGroupCreditFlag}
             dateFormat={dateFormat} setDateFormat={setDateFormat}
+            columnHeaders={columnHeaders} setColumnHeaders={setColumnHeaders}
             onBack={goBack} onNext={goNext}
           />
         )}
-        {step === 'rules' && analysis && (
+        {!autoAnalyzing && step === 'rules' && analysis && (
           <RulesStep
             analysis={analysis}
             creditFlag={creditFlag} setCreditFlag={setCreditFlag}
@@ -759,7 +811,7 @@ export default function CreateParserWizard({ onClose }: { onClose: () => void })
             onBack={goBack} onNext={goNext}
           />
         )}
-        {step === 'preview' && analysis && (
+        {!autoAnalyzing && step === 'preview' && analysis && (
           <PreviewStep
             analysis={analysis}
             bankName={bankName} cardType={cardType} currency={currency}

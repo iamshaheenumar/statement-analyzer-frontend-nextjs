@@ -7,6 +7,7 @@ import type { ParsedDataWithId, Transaction } from "@/features/dashboard/types";
 import TransactionsTable from "./components/TransactionsTable";
 import SimpleSearch from "./components/SimpleSearch";
 import ParsedHeader from "./components/ParsedHeader";
+import UnknownBankBanner from "./components/UnknownBankBanner";
 import { motion } from "framer-motion";
 import { pageVariants } from "@/lib/motion";
 
@@ -29,17 +30,25 @@ export default function ViewParsed({ id }: Props) {
     }
   }, [parsed, parsedList, id, loading, router]);
 
-  const filtered = useMemo(() => {
-    if (!parsedData) return [] as Transaction[];
+  const { filtered, filteredRawRows } = useMemo(() => {
+    if (!parsedData) return { filtered: [] as Transaction[], filteredRawRows: [] as string[][] };
     const term = searchTerm.trim().toLowerCase();
-    if (!term) return parsedData.transactions;
-    return parsedData.transactions.filter((t) => {
+    if (!term) return { filtered: parsedData.transactions, filteredRawRows: parsedData.rawRows ?? [] };
+
+    const result: Transaction[] = [];
+    const resultRawRows: string[][] = [];
+    parsedData.transactions.forEach((t, i) => {
       const desc = (t.description || "").toLowerCase();
       const date = (t.transaction_date ? String(t.transaction_date) : "").toLowerCase();
       const debit = t.debit ? String(t.debit) : "";
       const credit = t.credit ? String(t.credit) : "";
-      return desc.includes(term) || date.includes(term) || debit.includes(term) || credit.includes(term);
+      const rawMatch = parsedData.rawRows?.[i]?.some(v => v.toLowerCase().includes(term));
+      if (desc.includes(term) || date.includes(term) || debit.includes(term) || credit.includes(term) || rawMatch) {
+        result.push(t);
+        if (parsedData.rawRows?.[i]) resultRawRows.push(parsedData.rawRows[i]);
+      }
     });
+    return { filtered: result, filteredRawRows: resultRawRows };
   }, [parsedData, searchTerm]);
 
   const handleRemoveTransaction = async (tx: Transaction) => {
@@ -60,6 +69,7 @@ export default function ViewParsed({ id }: Props) {
     if (index === -1) return;
 
     const nextTransactions = parsedData.transactions.filter((_, i) => i !== index);
+    const nextRawRows = parsedData.rawRows ? parsedData.rawRows.filter((_, i) => i !== index) : undefined;
     const totals = nextTransactions.reduce(
       (acc, t) => {
         acc.debit += Number(t.debit || 0);
@@ -70,6 +80,7 @@ export default function ViewParsed({ id }: Props) {
     );
     const updated = await updateParsed(parsedData.id, {
       transactions: nextTransactions,
+      rawRows: nextRawRows,
       summary: {
         record_count: nextTransactions.length,
         total_debit: totals.debit,
@@ -98,6 +109,10 @@ export default function ViewParsed({ id }: Props) {
         onBack={() => router.back()}
       />
 
+      {parsedData?.parsedBy === "generic" && (
+        <UnknownBankBanner rawPageContent={parsedData.rawPageContent ?? []} />
+      )}
+
       <SimpleSearch value={searchTerm} onChange={setSearchTerm} />
 
       <TransactionsTable
@@ -108,6 +123,8 @@ export default function ViewParsed({ id }: Props) {
         fromDate={parsedData?.from_date?.toString()}
         toDate={parsedData?.to_date?.toString()}
         currency={parsedData?.currency || parsedData?.summary?.currency || "AED"}
+        originalHeaders={parsedData?.originalHeaders}
+        rawRows={filteredRawRows}
       />
     </motion.main>
   );

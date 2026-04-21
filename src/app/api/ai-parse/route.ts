@@ -15,6 +15,7 @@ Return this exact structure:
   "currency": "AED",
   "from_date": "YYYY-MM-DD" | null,
   "to_date": "YYYY-MM-DD" | null,
+  "columnHeaders": ["Date", "Description", "Amount", "..."],
   "transactions": [
     {
       "transaction_date": "YYYY-MM-DD",
@@ -22,7 +23,8 @@ Return this exact structure:
       "debit": 0.00,
       "credit": 0.00,
       "fx_currency": "USD",
-      "fx_amount": 0.00
+      "fx_amount": 0.00,
+      "rawCells": ["01/01/2025", "AMAZON.COM", "USD", "27.50", "3.673", "101.01"]
     }
   ],
   "parserConfig": {
@@ -35,7 +37,8 @@ Return this exact structure:
     "creditKeywords": ["PAYMENT RECEIVED", "REFUND"],
     "creditFlag": "CR",
     "periodFrom": "regex with group 1 capturing from-date string",
-    "periodTo": "regex with group 1 capturing to-date string"
+    "periodTo": "regex with group 1 capturing to-date string",
+    "columnHeaders": ["Date", "Description", "Amount", "..."]
   }
 }
 
@@ -47,7 +50,10 @@ Rules:
 - Include ALL rows: purchases, payments, fees, interest, reversals
 - currency: the statement's settlement/base currency (e.g. "AED", "INR", "USD")
 - fx_currency/fx_amount: only when a transaction was made in a different currency from the statement currency
-- parserConfig.rowPattern must be a valid JavaScript regex string`;
+- columnHeaders: the exact column names from the statement's table header row (e.g. ["Date", "Transaction Description", "Transaction Currency", "Transaction Amount", "FX Rate", "Total Amount (AED)"])
+- rawCells: for each transaction, the raw cell values as they appear in the PDF, in the same order as columnHeaders
+- parserConfig.rowPattern must be a valid JavaScript regex string
+- parserConfig.columnHeaders must match the top-level columnHeaders array`;
 
 interface AiParseRequest {
   pages: { page: number; lines: string[] }[];
@@ -108,17 +114,25 @@ export async function POST(request: NextRequest) {
     text: p.lines.join('\n'),
   }));
 
+  const columnHeaders: string[] = Array.isArray(parsed.columnHeaders) ? parsed.columnHeaders : [];
+  const rawRows: string[][] = [];
+
   // Normalize transactions through our standard pipeline
-  const rawTxns = (parsed.transactions || []).map((t: any) => ({
-    transaction_date: t.transaction_date || null,
-    description: t.description || null,
-    debit: Number(t.debit) || 0,
-    credit: Number(t.credit) || 0,
-    amount: Number(t.debit || t.credit) || 0,
-    ...(t.fx_currency && { fx_currency: t.fx_currency }),
-    ...(t.fx_amount && { fx_amount: Number(t.fx_amount) }),
-    ...(t.fx_rate && { fx_rate: Number(t.fx_rate) }),
-  }));
+  const rawTxns = (parsed.transactions || []).map((t: any) => {
+    if (Array.isArray(t.rawCells)) {
+      rawRows.push(t.rawCells.map(String));
+    }
+    return {
+      transaction_date: t.transaction_date || null,
+      description: t.description || null,
+      debit: Number(t.debit) || 0,
+      credit: Number(t.credit) || 0,
+      amount: Number(t.debit || t.credit) || 0,
+      ...(t.fx_currency && { fx_currency: t.fx_currency }),
+      ...(t.fx_amount && { fx_amount: Number(t.fx_amount) }),
+      ...(t.fx_rate && { fx_rate: Number(t.fx_rate) }),
+    };
+  });
 
   const cardType: 'credit' | 'debit' =
     parsed.card_type === 'debit' ? 'debit' : 'credit';
@@ -143,6 +157,7 @@ export async function POST(request: NextRequest) {
         creditFlag: parsed.parserConfig.creditFlag,
         periodFrom: parsed.parserConfig.periodFrom,
         periodTo: parsed.parserConfig.periodTo,
+        columnHeaders: parsed.parserConfig.columnHeaders?.length ? parsed.parserConfig.columnHeaders : (columnHeaders.length ? columnHeaders : undefined),
       }
     : null;
 
@@ -156,5 +171,6 @@ export async function POST(request: NextRequest) {
     transactions: normalized,
     parsedBy: 'ai',
     suggestedConfig,
+    ...(columnHeaders.length && rawRows.length ? { originalHeaders: columnHeaders, rawRows } : {}),
   });
 }

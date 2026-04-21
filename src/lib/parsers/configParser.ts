@@ -20,10 +20,12 @@ export type ParserConfigData = {
   periodFrom?: string;
   periodTo?: string;
   dueDatePattern?: string;
+  columnHeaders?: string[];  // Display names for each regex capture group, in group order
 };
 
 export function parseWithConfig(pages: PageContent[], config: ParserConfigData): ParseResult {
   const transactions = [];
+  const rawRows: string[][] = [];
   let statementFrom: string | null = null;
   let statementTo: string | null = null;
   let statementDueDate: string | null = null;
@@ -85,6 +87,7 @@ export function parseWithConfig(pages: PageContent[], config: ParserConfigData):
         );
 
       transactions.push({ transaction_date: date, description: desc, debit: isCredit ? 0 : amount, credit: isCredit ? amount : 0, amount });
+      rawRows.push(Array.from(m).slice(1).map(v => v ?? ''));
     }
   }
 
@@ -100,5 +103,6 @@ export function parseWithConfig(pages: PageContent[], config: ParserConfigData):
     due_date: statementDueDate,
     summary: summarizeTransactions(normalized, currency),
     transactions: normalized,
+    ...(config.columnHeaders?.length ? { originalHeaders: config.columnHeaders, rawRows } : {}),
   };
 }

@@ -24,6 +24,7 @@ export default async function AdminParsersPage() {
     active: p.active,
     status: p.status,
     createdAt: p.createdAt.toISOString(),
+    rawPageContent: p.rawPageContent as Array<{ page: number; lines: string[]; text: string }> | null,
   }));
 
   return <AdminParsersClient parsers={serialized} />;

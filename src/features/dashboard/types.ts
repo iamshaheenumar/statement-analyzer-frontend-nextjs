@@ -41,6 +41,9 @@ export type ParsedData = BaseStatement & {
   summary: StatementSummary;
   transactions: Transaction[];
   parsedBy?: 'config' | 'generic' | 'ai';
+  originalHeaders?: string[];
+  rawRows?: string[][];
+  rawPageContent?: import('@/lib/pdf/types').PageContent[];
 };
 
 export type ParsedDataWithId = ParsedData & { id: string };

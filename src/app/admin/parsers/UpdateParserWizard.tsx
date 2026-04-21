@@ -20,6 +20,7 @@ interface GuidedAnalysis {
   bankName: string;
   cardType: 'credit' | 'debit';
   currency: string;
+  columnHeaders?: string[];
   identification: { keywords: string[]; sampleLines: string[] };
   statementPeriod: {
     fromDate: string | null; toDate: string | null; dueDate: string | null;
@@ -83,6 +84,7 @@ function buildProposedConfig(a: GuidedAnalysis): ParserConfigData {
     periodFrom: a.statementPeriod.fromPattern || undefined,
     periodTo: a.statementPeriod.toPattern || undefined,
     dueDatePattern: a.statementPeriod.dueDatePattern || undefined,
+    columnHeaders: a.columnHeaders?.length ? a.columnHeaders : undefined,
   };
 }
 
@@ -106,6 +108,7 @@ function computeDiff(existing: ParserConfigData, proposed: ParserConfigData): Fi
     { key: 'periodTo', label: 'Period To Regex', mono: true, ex: existing.periodTo || '', pr: proposed.periodTo || '' },
     { key: 'dueDatePattern', label: 'Due Date Regex', mono: true, ex: existing.dueDatePattern || '', pr: proposed.dueDatePattern || '' },
     { key: 'keywordsPage', label: 'Keyword Search Scope', ex: kpLabel(existing.keywordsPage), pr: kpLabel(proposed.keywordsPage) },
+    { key: 'columnHeaders', label: 'Column Headers', ex: (existing.columnHeaders || []).join(', '), pr: (proposed.columnHeaders || []).join(', ') },
   ];
 
   return specs.map(f => {
@@ -156,6 +159,7 @@ function rebuildConfig(diffs: FieldDiff[]): ParserConfigData {
     periodFrom: get('periodFrom') || undefined,
     periodTo: get('periodTo') || undefined,
     dueDatePattern: get('dueDatePattern') || undefined,
+    columnHeaders: get('columnHeaders').split(',').map(h => h.trim()).filter(Boolean) || undefined,
   };
 }
 

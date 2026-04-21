@@ -21,6 +21,8 @@ type Props = {
   fromDate?: string;
   toDate?: string;
   currency?: string;
+  originalHeaders?: string[];
+  rawRows?: string[][];
 };
 
 type ConfirmState = { index: number } | null;
@@ -33,16 +35,27 @@ function buildCSVFilename(bank?: string, from?: string, to?: string) {
   return parts.join("_").replace(/\s+/g, "-") + ".csv";
 }
 
-function downloadCSV(transactions: Transaction[], currency: string, bank?: string, from?: string, to?: string) {
-  const headers = ["Date", "Description", `Debit (${currency})`, `Credit (${currency})`, "FX Currency", "FX Amount"];
-  const rows = transactions.map((t) => [
-    t.transaction_date || "",
-    `"${(t.description || "").replace(/"/g, '""')}"`,
-    t.debit ? Number(t.debit).toFixed(2) : "",
-    t.credit ? Number(t.credit).toFixed(2) : "",
-    t.fx_currency || "",
-    t.fx_amount ? Number(t.fx_amount).toFixed(2) : "",
-  ]);
+function downloadCSV(
+  transactions: Transaction[], currency: string,
+  bank?: string, from?: string, to?: string,
+  originalHeaders?: string[], rawRows?: string[][],
+) {
+  let headers: string[];
+  let rows: string[][];
+  if (originalHeaders?.length && rawRows?.length) {
+    headers = ["#", ...originalHeaders];
+    rows = rawRows.map((r, i) => [String(i + 1), ...r.map(v => v.includes(',') ? `"${v.replace(/"/g, '""')}"` : v)]);
+  } else {
+    headers = ["Date", "Description", `Debit (${currency})`, `Credit (${currency})`, "FX Currency", "FX Amount"];
+    rows = transactions.map((t) => [
+      t.transaction_date ? String(t.transaction_date) : "",
+      `"${(t.description || "").replace(/"/g, '""')}"`,
+      t.debit ? Number(t.debit).toFixed(2) : "",
+      t.credit ? Number(t.credit).toFixed(2) : "",
+      t.fx_currency || "",
+      t.fx_amount ? Number(t.fx_amount).toFixed(2) : "",
+    ]);
+  }
   const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
   const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
@@ -53,16 +66,26 @@ function downloadCSV(transactions: Transaction[], currency: string, bank?: strin
   URL.revokeObjectURL(url);
 }
 
-async function copyAsTSV(transactions: Transaction[], currency: string) {
-  const headers = ["Date", "Description", `Debit (${currency})`, `Credit (${currency})`, "FX Currency", "FX Amount"];
-  const rows = transactions.map((t) => [
-    t.transaction_date || "",
-    t.description || "",
-    t.debit ? Number(t.debit).toFixed(2) : "",
-    t.credit ? Number(t.credit).toFixed(2) : "",
-    t.fx_currency || "",
-    t.fx_amount ? Number(t.fx_amount).toFixed(2) : "",
-  ]);
+async function copyAsTSV(
+  transactions: Transaction[], currency: string,
+  originalHeaders?: string[], rawRows?: string[][],
+) {
+  let headers: string[];
+  let rows: string[][];
+  if (originalHeaders?.length && rawRows?.length) {
+    headers = ["#", ...originalHeaders];
+    rows = rawRows.map((r, i) => [String(i + 1), ...r]);
+  } else {
+    headers = ["Date", "Description", `Debit (${currency})`, `Credit (${currency})`, "FX Currency", "FX Amount"];
+    rows = transactions.map((t) => [
+      t.transaction_date ? String(t.transaction_date) : "",
+      t.description || "",
+      t.debit ? Number(t.debit).toFixed(2) : "",
+      t.credit ? Number(t.credit).toFixed(2) : "",
+      t.fx_currency || "",
+      t.fx_amount ? Number(t.fx_amount).toFixed(2) : "",
+    ]);
+  }
   const tsv = [headers, ...rows].map((r) => r.join("\t")).join("\n");
   await navigator.clipboard.writeText(tsv);
 }
@@ -75,13 +98,17 @@ export default function TransactionsTable({
   fromDate,
   toDate,
   currency = "AED",
+  originalHeaders,
+  rawRows,
 }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>("normal");
   const [copied, setCopied] = useState(false);
 
+  const hasOriginal = !!(originalHeaders?.length && rawRows?.length);
+
   const handleCopy = async () => {
     try {
-      await copyAsTSV(transactions, currency);
+      await copyAsTSV(transactions, currency, originalHeaders, rawRows);
       setCopied(true);
       toast.success("Copied — paste directly into Excel or Google Sheets");
       setTimeout(() => setCopied(false), 2000);
@@ -91,7 +118,7 @@ export default function TransactionsTable({
   };
 
   const handleDownload = () => {
-    downloadCSV(transactions, currency, bank, fromDate, toDate);
+    downloadCSV(transactions, currency, bank, fromDate, toDate, originalHeaders, rawRows);
     toast.success("CSV downloaded");
   };
 
@@ -171,7 +198,13 @@ export default function TransactionsTable({
           <p className="text-sm text-text-muted">No transactions found</p>
         </div>
       ) : viewMode === "spreadsheet" ? (
-        <SpreadsheetView transactions={transactions} currency={currency} />
+        <SpreadsheetView transactions={transactions} currency={currency} originalHeaders={originalHeaders} rawRows={rawRows} />
+      ) : hasOriginal ? (
+        <OriginalView
+          headers={originalHeaders!}
+          rows={rawRows!}
+          onRemove={onRemove ? (i) => onRemove(transactions[i]) : undefined}
+        />
       ) : (
         <NormalView transactions={transactions} onRemove={onRemove} currency={currency} />
       )}
@@ -379,7 +412,135 @@ function NormalView({
   );
 }
 
-function SpreadsheetView({ transactions, currency }: { transactions: Transaction[]; currency: string }) {
+function OriginalView({
+  headers,
+  rows,
+  onRemove,
+}: {
+  headers: string[];
+  rows: string[][];
+  onRemove?: (index: number) => void;
+}) {
+  const [confirmState, setConfirmState] = useState<ConfirmState>(null);
+  const colCount = headers.length + (onRemove ? 2 : 1); // # col + headers + optional delete
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="bg-base border-b border-border">
+            <th className="px-4 py-3 text-[11px] font-semibold font-mono text-text-muted uppercase tracking-widest text-left w-10">
+              #
+            </th>
+            {headers.map((h) => (
+              <th
+                key={h}
+                className="px-4 py-3 text-[11px] font-semibold font-mono text-text-muted uppercase tracking-widest text-left whitespace-nowrap"
+              >
+                {h}
+              </th>
+            ))}
+            {onRemove && <th className="px-4 py-3 w-10" />}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {rows.map((row, i) => (
+            <tr
+              key={i}
+              className={`transition-colors duration-100 ${
+                confirmState?.index === i ? "bg-danger-muted" : "hover:bg-elevated"
+              }`}
+            >
+              {confirmState?.index === i ? (
+                <td colSpan={colCount} className="px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs text-text-secondary">Remove this transaction?</p>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        onClick={() => { onRemove?.(i); setConfirmState(null); }}
+                        className="px-3 py-1 text-xs font-semibold text-white bg-danger hover:bg-danger/80 rounded-md transition-colors"
+                      >
+                        Remove
+                      </button>
+                      <button
+                        onClick={() => setConfirmState(null)}
+                        className="px-3 py-1 text-xs font-semibold text-text-secondary bg-elevated hover:bg-overlay rounded-md transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </td>
+              ) : (
+                <>
+                  <td className="px-4 py-3 text-xs font-mono text-text-muted tabular-nums">{i + 1}</td>
+                  {row.map((cell, ci) => (
+                    <td key={ci} className="px-4 py-3 text-sm text-text-primary whitespace-nowrap max-w-xs truncate">
+                      {cell || "—"}
+                    </td>
+                  ))}
+                  {onRemove && (
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        onClick={() => setConfirmState({ index: i })}
+                        className="p-1.5 text-text-muted hover:text-danger hover:bg-danger-muted rounded-lg transition-colors"
+                        aria-label="Remove transaction"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+                  )}
+                </>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function SpreadsheetView({
+  transactions, currency, originalHeaders, rawRows,
+}: {
+  transactions: Transaction[];
+  currency: string;
+  originalHeaders?: string[];
+  rawRows?: string[][];
+}) {
+  const hasOriginal = !!(originalHeaders?.length && rawRows?.length);
+
+  if (hasOriginal) {
+    return (
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs font-mono border-collapse">
+          <thead>
+            <tr className="bg-base">
+              <th className="border border-border px-2 py-2 text-[10px] font-semibold text-text-muted uppercase tracking-widest text-left w-8">#</th>
+              {originalHeaders!.map((h) => (
+                <th key={h} className="border border-border px-2 py-2 text-[10px] font-semibold text-text-muted uppercase tracking-widest text-left whitespace-nowrap">
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rawRows!.map((row, i) => (
+              <tr key={i} className={`hover:bg-elevated transition-colors ${i % 2 === 0 ? "bg-surface" : "bg-base/60"}`}>
+                <td className="border border-border/50 px-2 py-1.5 text-text-muted tabular-nums text-right select-all">{i + 1}</td>
+                {row.map((cell, ci) => (
+                  <td key={ci} className="border border-border/50 px-2 py-1.5 text-text-primary whitespace-nowrap select-all">
+                    {cell || ""}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
   const hasFx = transactions.some(t => t.fx_currency);
   const headers = [
     "#", "Date", "Description",
@@ -406,36 +567,21 @@ function SpreadsheetView({ transactions, currency }: { transactions: Transaction
         </thead>
         <tbody>
           {transactions.map((t, i) => (
-            <tr
-              key={i}
-              className={`hover:bg-elevated transition-colors ${
-                i % 2 === 0 ? "bg-surface" : "bg-base/60"
-              }`}
-            >
-              <td className="border border-border/50 px-2 py-1.5 text-text-muted tabular-nums text-right w-8 select-all">
-                {i + 1}
-              </td>
+            <tr key={i} className={`hover:bg-elevated transition-colors ${i % 2 === 0 ? "bg-surface" : "bg-base/60"}`}>
+              <td className="border border-border/50 px-2 py-1.5 text-text-muted tabular-nums text-right w-8 select-all">{i + 1}</td>
               <td className="border border-border/50 px-2 py-1.5 text-text-secondary whitespace-nowrap select-all">
                 {t.transaction_date ? String(t.transaction_date) : ""}
               </td>
-              <td className="border border-border/50 px-2 py-1.5 text-text-primary select-all">
-                {t.description || ""}
+              <td className="border border-border/50 px-2 py-1.5 text-text-primary select-all">{t.description || ""}</td>
+              <td className="border border-border/50 px-2 py-1.5 text-right tabular-nums select-all">
+                {t.debit ? <span className="text-danger">{Number(t.debit).toFixed(2)}</span> : ""}
               </td>
               <td className="border border-border/50 px-2 py-1.5 text-right tabular-nums select-all">
-                {t.debit ? (
-                  <span className="text-danger">{Number(t.debit).toFixed(2)}</span>
-                ) : ""}
-              </td>
-              <td className="border border-border/50 px-2 py-1.5 text-right tabular-nums select-all">
-                {t.credit ? (
-                  <span className="text-success">{Number(t.credit).toFixed(2)}</span>
-                ) : ""}
+                {t.credit ? <span className="text-success">{Number(t.credit).toFixed(2)}</span> : ""}
               </td>
               {hasFx && (
                 <>
-                  <td className="border border-border/50 px-2 py-1.5 text-accent select-all">
-                    {t.fx_currency || ""}
-                  </td>
+                  <td className="border border-border/50 px-2 py-1.5 text-accent select-all">{t.fx_currency || ""}</td>
                   <td className="border border-border/50 px-2 py-1.5 text-right tabular-nums select-all">
                     {t.fx_amount ? Number(t.fx_amount).toFixed(2) : ""}
                   </td>

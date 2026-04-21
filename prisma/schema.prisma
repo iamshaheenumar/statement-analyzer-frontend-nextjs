@@ -57,15 +57,16 @@ model BankCard {
 }
 
 model ParserConfig {
-  id        String   @id @default(uuid())
-  userId    String?
-  bank      String
-  keywords  String[]
-  config    Json
-  source    String   @default("ai")
-  active    Boolean  @default(true)
-  status    String   @default("pending")
-  createdAt DateTime @default(now())
+  id             String   @id @default(uuid())
+  userId         String?
+  bank           String
+  keywords       String[]
+  config         Json
+  source         String   @default("ai")
+  active         Boolean  @default(true)
+  status         String   @default("pending")
+  rawPageContent Json?
+  createdAt      DateTime @default(now())
 
   @@index([userId])
 }

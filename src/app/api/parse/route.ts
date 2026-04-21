@@ -50,6 +50,10 @@ export async function POST(request: NextRequest) {
 
   try {
     const result = parseStatement(pages, dbConfig);
+    // Only include raw page content for unknown banks so the user can submit them for admin review
+    if (!dbConfig) {
+      return NextResponse.json({ ...result, rawPageContent: pages });
+    }
     return NextResponse.json(result);
   } catch (err) {
     console.error('[POST /api/parse]', err);
