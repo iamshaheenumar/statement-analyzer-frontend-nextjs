@@ -16,6 +16,7 @@ export type DashboardTransaction = {
   date: string;
   description: string;
   category: string;
+  categoryColor: string;
   amount: number;
   type: TransactionType;
 };
@@ -55,15 +56,16 @@ async function getData(userId: string, month?: string, year?: string) {
       transactionDate: { gte: startDate, lte: endDate },
       statement: { userId },
     },
-    include: { category: true },
-    orderBy: { transactionDate: "desc" },
+    include: { category: true, statement: true },
+    orderBy: { transactionDate: "asc" },
   });
 
   const monthlyData = transactions.reduce(
     (acc, tx) => {
       const credit = tx.credit ? Number(tx.credit) : 0;
       const debit = tx.debit ? Number(tx.debit) : 0;
-      if (credit > 0) acc.income += credit;
+      const isCreditCard = tx.statement.card_type != null || tx.statement.credit_limit != null;
+      if (credit > 0 && !isCreditCard) acc.income += credit;
       if (debit > 0) acc.expenses += debit;
       return acc;
     },
@@ -82,25 +84,33 @@ async function getData(userId: string, month?: string, year?: string) {
         acc.set(name, { amount: (existing?.amount || 0) + amount, color });
         return acc;
       }, new Map<string, { amount: number; color: string }>())
-  ).map(([name, { amount, color }]) => ({ name, amount, color }));
+  ).map(([name, { amount, color }]) => ({ name, amount, color }))
+    .sort((a, b) => b.amount - a.amount);
 
-  const formattedTransactions: DashboardTransaction[] = transactions.map((tx) => ({
-    date: tx.transactionDate?.toISOString().split("T")[0] || "",
-    description: tx.description || "",
-    category: tx.category?.name || "Others",
-    amount:
-      tx.credit && Number(tx.credit) > 0
-        ? Number(tx.credit)
-        : tx.debit && Number(tx.debit) > 0
-        ? -Number(tx.debit)
-        : 0,
-    type:
-      tx.credit && Number(tx.credit) > 0
-        ? "Credit"
-        : tx.debit && Number(tx.debit) > 0
-        ? "Debit"
-        : "Neutral",
-  }));
+  const formattedTransactions: DashboardTransaction[] = transactions.map((tx) => {
+    const d = tx.transactionDate;
+    const dateStr = d
+      ? `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}-${d.getFullYear()}`
+      : "";
+    return {
+      date: dateStr,
+      description: tx.description || "",
+      category: tx.category?.name || "Others",
+      categoryColor: tx.category?.color || FALLBACK_COLOR,
+      amount:
+        tx.credit && Number(tx.credit) > 0
+          ? Number(tx.credit)
+          : tx.debit && Number(tx.debit) > 0
+          ? -Number(tx.debit)
+          : 0,
+      type:
+        tx.credit && Number(tx.credit) > 0
+          ? "Credit"
+          : tx.debit && Number(tx.debit) > 0
+          ? "Debit"
+          : "Neutral",
+    };
+  });
 
   return { monthlyData, expenseCategories, transactions: formattedTransactions, availableMonths };
 }
