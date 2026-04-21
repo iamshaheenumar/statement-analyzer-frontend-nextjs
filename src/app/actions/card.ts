@@ -17,6 +17,7 @@ export async function saveCardAction(data: {
   bank: string;
   cardNumber?: string | null;
   cardType: string;
+  cardVariant?: string | null;
   password?: string | null;
   nickname?: string | null;
 }) {
@@ -33,6 +34,7 @@ export async function saveCardAction(data: {
         data: {
           bank: data.bank,
           cardType: data.cardType,
+          cardVariant: data.cardVariant ?? existing.cardVariant,
           password: data.password ?? existing.password,
           nickname: data.nickname ?? existing.nickname,
         },
@@ -49,6 +51,7 @@ export async function saveCardAction(data: {
       bank: data.bank,
       cardNumber: data.cardNumber ?? null,
       cardType: data.cardType,
+      cardVariant: data.cardVariant ?? null,
       password: data.password ?? null,
       nickname: data.nickname ?? null,
     },

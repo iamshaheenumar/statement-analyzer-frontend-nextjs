@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { FormValues } from "@/features/upload/types";
+import type { SavedCard } from "@/features/upload/types";
 import UploadForm from "@/features/upload/UploadForm";
 import SaveCardPrompt from "@/features/upload/SaveCardPrompt";
 import SaveParserPrompt from "@/features/upload/SaveParserPrompt";
@@ -17,20 +18,11 @@ import type { ParserConfigData } from "@/lib/parsers/configParser";
 import { motion } from "framer-motion";
 import { pageVariants } from "@/lib/motion";
 
-type SavedCard = {
-  id: string;
-  bank: string;
-  cardNumber: string | null;
-  cardType: string;
-  password: string | null;
-  nickname: string | null;
-};
-
 type PendingCard = {
   parsedId: string;
   bank: string;
   cardType: string;
-  cardNumber: string | null;
+  cardVariant: string | null;
   usedPassword: string;
 };
 
@@ -55,10 +47,7 @@ export default function UploadPage() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [stage, setStage] = useState<Stage>({ type: "idle" });
-
   const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
-  const [autoPassword, setAutoPassword] = useState("");
-  const [autoPasswordNote, setAutoPasswordNote] = useState("");
 
   const refreshCards = async () => {
     const supabase = createSupabaseBrowserClient();
@@ -70,34 +59,23 @@ export default function UploadPage() {
 
   useEffect(() => { refreshCards(); }, []);
 
-  const handleFileReady = (_file: File, cardNumber: string | null) => {
-    setAutoPassword("");
-    setAutoPasswordNote("");
-    if (!cardNumber) return;
-    const match = savedCards.find(
-      (c) => c.cardNumber?.toUpperCase() === cardNumber.toUpperCase()
-    );
-    if (match?.password) {
-      setAutoPassword(match.password);
-      setAutoPasswordNote(match.nickname || `${match.bank} ${cardNumber.slice(-4)}`);
-    }
-  };
-
   async function handleParseSuccess(
     result: any,
     parsedId: string,
-    cardNumber: string | null,
     usedPassword: string
   ) {
-    const { bank, card_type: cardType, parsedBy, suggestedConfig } = result;
+    const { bank, card_type: cardType, card_variant: cardVariant, parsedBy, suggestedConfig } = result;
 
     const supabase = createSupabaseBrowserClient();
     const { data: { session } } = await supabase.auth.getSession();
     const isLoggedIn = !!session;
 
-    const cardAlreadySaved = cardNumber
-      ? savedCards.some((c) => c.cardNumber?.toUpperCase() === cardNumber.toUpperCase())
-      : false;
+    const cardAlreadySaved = savedCards.some(
+      (c) =>
+        c.bank === bank &&
+        c.cardType === cardType &&
+        (c.cardVariant ?? null) === (cardVariant ?? null)
+    );
 
     if (isLoggedIn && parsedBy === "ai" && suggestedConfig) {
       setStage({ type: "save_parser", pending: { parsedId, bank, cardType, suggestedConfig } });
@@ -105,7 +83,7 @@ export default function UploadPage() {
     }
 
     if (isLoggedIn && !cardAlreadySaved) {
-      setStage({ type: "save_card", pending: { parsedId, bank, cardType, cardNumber, usedPassword } });
+      setStage({ type: "save_card", pending: { parsedId, bank, cardType, cardVariant: cardVariant ?? null, usedPassword } });
       return;
     }
 
@@ -122,17 +100,13 @@ export default function UploadPage() {
       const res = await axios.post("/api/parse", { pages });
       const result = res.data;
 
-      const filename = data.file[0]?.name ?? "";
-      const cardNumMatch = filename.match(/(\d{4,8}[Xx*]+\d{4})/);
-      const cardNumber = cardNumMatch ? cardNumMatch[1].toUpperCase() : null;
-
       if (result.parsedBy === "generic" || result.bank === "unknown") {
         setStage({ type: "unknown_bank", pages, password: data.password || "" });
         return;
       }
 
       const saved = await addParsed(result);
-      await handleParseSuccess(result, saved.id, cardNumber, data.password || "");
+      await handleParseSuccess(result, saved.id, data.password || "");
     } catch (err: any) {
       setError(
         err.response?.data?.detail ||
@@ -154,7 +128,7 @@ export default function UploadPage() {
       const res = await axios.post("/api/ai-parse", { pages });
       const result = res.data;
       const saved = await addParsed(result);
-      await handleParseSuccess(result, saved.id, null, password);
+      await handleParseSuccess(result, saved.id, password);
     } catch (err: any) {
       setError(err.response?.data?.error || "AI parsing failed. Please try again.");
       setStage({ type: "unknown_bank", pages, password });
@@ -168,7 +142,7 @@ export default function UploadPage() {
     const supabase = createSupabaseBrowserClient();
     const { data: { session } } = await supabase.auth.getSession();
     if (session) {
-      setStage({ type: "save_card", pending: { parsedId, bank: stage.pending.bank, cardType: stage.pending.cardType, cardNumber: null, usedPassword: "" } });
+      setStage({ type: "save_card", pending: { parsedId, bank: stage.pending.bank, cardType: stage.pending.cardType, cardVariant: null, usedPassword: "" } });
     } else {
       router.push(`/view-parsed?id=${parsedId}`);
     }
@@ -211,7 +185,7 @@ export default function UploadPage() {
           <SaveCardPrompt
             bank={stage.pending.bank}
             cardType={stage.pending.cardType}
-            cardNumber={stage.pending.cardNumber}
+            cardVariant={stage.pending.cardVariant}
             usedPassword={stage.pending.usedPassword}
             onDone={handleSaveCardDone}
           />
@@ -227,9 +201,7 @@ export default function UploadPage() {
             onSubmit={onSubmit}
             isLoading={isLoading}
             error={error}
-            autoPassword={autoPassword}
-            autoPasswordNote={autoPasswordNote}
-            onFileReady={handleFileReady}
+            savedCards={savedCards}
           />
         )}
 

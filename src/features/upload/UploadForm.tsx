@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { toast } from "sonner";
 import {
   Upload,
@@ -13,10 +13,12 @@ import {
   Shield,
   Zap,
   Building2,
-  CheckCircle2,
+  CreditCard,
+  ChevronDown,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { dropzoneVariants, fileEntryVariants } from "@/lib/motion";
+import type { SavedCard } from "./types";
 
 type FormValues = {
   file: FileList;
@@ -27,35 +29,22 @@ type Props = {
   onSubmit: (data: FormValues) => Promise<void>;
   isLoading: boolean;
   error: string | null;
-  autoPassword?: string;
-  autoPasswordNote?: string;
-  onFileReady?: (file: File, cardNumber: string | null) => void;
+  savedCards?: SavedCard[];
 };
-
-function extractCardNumber(filename: string): string | null {
-  const m = filename.match(/(\d{4,8}[Xx*]+\d{4})/);
-  return m ? m[1].toUpperCase() : null;
-}
 
 export default function UploadForm({
   onSubmit,
   isLoading,
   error,
-  autoPassword,
-  autoPasswordNote,
-  onFileReady,
+  savedCards = [],
 }: Props) {
   const [file, setFile] = useState<File | null>(null);
   const [password, setPassword] = useState("");
-  const [passwordManuallyEdited, setPasswordManuallyEdited] = useState(false);
+  const [selectedCardId, setSelectedCardId] = useState<string>("");
   const [isDragging, setIsDragging] = useState(false);
   const [isPasswordProtected, setIsPasswordProtected] = useState(false);
 
-  useEffect(() => {
-    if (autoPassword && !passwordManuallyEdited) {
-      setPassword(autoPassword);
-    }
-  }, [autoPassword, passwordManuallyEdited]);
+  const selectedCard = savedCards.find((c) => c.id === selectedCardId) ?? null;
 
   const checkFilePassword = async (f: File) => {
     try {
@@ -69,11 +58,7 @@ export default function UploadForm({
 
   const handleFile = async (f: File) => {
     setFile(f);
-    setPassword("");
-    setPasswordManuallyEdited(false);
     setIsPasswordProtected(false);
-    const cardNumber = extractCardNumber(f.name);
-    onFileReady?.(f, cardNumber);
     await checkFilePassword(f);
   };
 
@@ -93,6 +78,13 @@ export default function UploadForm({
     }
   };
 
+  const handleCardSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const id = e.target.value;
+    setSelectedCardId(id);
+    const card = savedCards.find((c) => c.id === id) ?? null;
+    setPassword(card?.password ?? "");
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file) return toast.error("Please select a PDF file");
@@ -105,11 +97,14 @@ export default function UploadForm({
     e.stopPropagation();
     setFile(null);
     setPassword("");
-    setPasswordManuallyEdited(false);
     setIsPasswordProtected(false);
   };
 
   const dropzoneState = isDragging ? "dragging" : file ? "accepted" : "idle";
+
+  const cardLabel = (card: SavedCard) =>
+    card.nickname ||
+    `${card.bank}${card.cardVariant ? ` ${card.cardVariant}` : ""} ${card.cardType === "credit" ? "Credit" : "Debit"}`;
 
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-surface overflow-hidden">
@@ -191,20 +186,38 @@ export default function UploadForm({
             </motion.div>
           </div>
 
+          {/* Saved card selector */}
+          {savedCards.length > 0 && (
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-2">
+                Saved Card <span className="text-text-muted font-normal">(optional)</span>
+              </label>
+              <div className="relative">
+                <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
+                <select
+                  value={selectedCardId}
+                  onChange={handleCardSelect}
+                  className="w-full pl-9 pr-8 py-2.5 text-sm border border-border rounded-lg bg-base text-text-primary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent transition-shadow appearance-none"
+                >
+                  <option value="">None — enter password manually</option>
+                  {savedCards.map((card) => (
+                    <option key={card.id} value={card.id}>
+                      {cardLabel(card)}
+                      {card.password ? " (password saved)" : ""}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
+              </div>
+            </div>
+          )}
+
           {/* Password field */}
           {file && isPasswordProtected && (
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-xs font-medium text-text-secondary">
-                  Password <span className="text-danger">*</span>
-                </label>
-                {autoPasswordNote && !passwordManuallyEdited && (
-                  <span className="flex items-center gap-1 text-xs text-success font-medium bg-success-muted px-2 py-0.5 rounded-full ring-1 ring-success/20">
-                    <CheckCircle2 className="w-3 h-3" />
-                    Auto-filled from {autoPasswordNote}
-                  </span>
-                )}
-              </div>
+              <label className="block text-xs font-medium text-text-secondary mb-2">
+                Password <span className="text-danger">*</span>
+              </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
                 <input
@@ -213,7 +226,7 @@ export default function UploadForm({
                   value={password}
                   onChange={(e) => {
                     setPassword(e.target.value);
-                    setPasswordManuallyEdited(true);
+                    setSelectedCardId("");
                   }}
                   required
                   className="w-full pl-9 pr-4 py-2.5 text-sm border border-border rounded-lg bg-base placeholder:text-text-muted text-text-primary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent transition-shadow"

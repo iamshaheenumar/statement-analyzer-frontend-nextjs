@@ -8,7 +8,7 @@ import { toast } from "sonner";
 type Props = {
   bank: string;
   cardType: string;
-  cardNumber?: string | null;
+  cardVariant?: string | null;
   usedPassword?: string;
   onDone: () => void;
 };
@@ -16,7 +16,7 @@ type Props = {
 export default function SaveCardPrompt({
   bank,
   cardType,
-  cardNumber,
+  cardVariant,
   usedPassword,
   onDone,
 }: Props) {
@@ -30,7 +30,7 @@ export default function SaveCardPrompt({
         await saveCardAction({
           bank,
           cardType,
-          cardNumber: cardNumber ?? null,
+          cardVariant: cardVariant ?? null,
           password: savePassword && usedPassword ? usedPassword : null,
           nickname: nickname.trim() || null,
         });
@@ -67,8 +67,8 @@ export default function SaveCardPrompt({
           <div className="min-w-0">
             <p className="font-display text-sm font-semibold text-text-primary">{bank}</p>
             <div className="flex items-center gap-2 mt-0.5">
-              {cardNumber && (
-                <span className="text-xs text-text-muted font-mono">{cardNumber}</span>
+              {cardVariant && (
+                <span className="text-xs text-text-muted">{cardVariant}</span>
               )}
               <span
                 className={`text-xs font-medium px-1.5 py-0.5 rounded-full capitalize border ${
