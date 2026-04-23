@@ -51,39 +51,63 @@ export default function UploadPage() {
 
   const refreshCards = async () => {
     const supabase = createSupabaseBrowserClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     if (!session) return;
     const cards = await getCardsAction();
     setSavedCards(cards as SavedCard[]);
   };
 
-  useEffect(() => { refreshCards(); }, []);
+  useEffect(() => {
+    refreshCards();
+  }, []);
 
   async function handleParseSuccess(
     result: any,
     parsedId: string,
-    usedPassword: string
+    usedPassword: string,
   ) {
-    const { bank, card_type: cardType, card_variant: cardVariant, parsedBy, suggestedConfig } = result;
+    const {
+      bank,
+      card_type: cardType,
+      card_variant: cardVariant,
+      parsedBy,
+      suggestedConfig,
+    } = result;
 
     const supabase = createSupabaseBrowserClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     const isLoggedIn = !!session;
 
     const cardAlreadySaved = savedCards.some(
       (c) =>
         c.bank === bank &&
         c.cardType === cardType &&
-        (c.cardVariant ?? null) === (cardVariant ?? null)
+        (c.cardVariant ?? null) === (cardVariant ?? null),
     );
 
     if (isLoggedIn && parsedBy === "ai" && suggestedConfig) {
-      setStage({ type: "save_parser", pending: { parsedId, bank, cardType, suggestedConfig } });
+      setStage({
+        type: "save_parser",
+        pending: { parsedId, bank, cardType, suggestedConfig },
+      });
       return;
     }
 
     if (isLoggedIn && !cardAlreadySaved) {
-      setStage({ type: "save_card", pending: { parsedId, bank, cardType, cardVariant: cardVariant ?? null, usedPassword } });
+      setStage({
+        type: "save_card",
+        pending: {
+          parsedId,
+          bank,
+          cardType,
+          cardVariant: cardVariant ?? null,
+          usedPassword,
+        },
+      });
       return;
     }
 
@@ -96,12 +120,19 @@ export default function UploadPage() {
 
     try {
       const { extractPdfPages } = await import("@/services/parsePDF");
-      const pages = await extractPdfPages(data.file[0], data.password || undefined);
+      const pages = await extractPdfPages(
+        data.file[0],
+        data.password || undefined,
+      );
       const res = await axios.post("/api/parse", { pages });
       const result = res.data;
 
       if (result.parsedBy === "generic" || result.bank === "unknown") {
-        setStage({ type: "unknown_bank", pages, password: data.password || "" });
+        setStage({
+          type: "unknown_bank",
+          pages,
+          password: data.password || "",
+        });
         return;
       }
 
@@ -110,8 +141,8 @@ export default function UploadPage() {
     } catch (err: any) {
       setError(
         err.response?.data?.detail ||
-        err.response?.data?.error ||
-        "Failed to parse file"
+          err.response?.data?.error ||
+          "Failed to parse file",
       );
     } finally {
       setIsLoading(false);
@@ -130,7 +161,9 @@ export default function UploadPage() {
       const saved = await addParsed(result);
       await handleParseSuccess(result, saved.id, password);
     } catch (err: any) {
-      setError(err.response?.data?.error || "AI parsing failed. Please try again.");
+      setError(
+        err.response?.data?.error || "AI parsing failed. Please try again.",
+      );
       setStage({ type: "unknown_bank", pages, password });
     }
   };
@@ -140,9 +173,20 @@ export default function UploadPage() {
     const { parsedId } = stage.pending;
 
     const supabase = createSupabaseBrowserClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     if (session) {
-      setStage({ type: "save_card", pending: { parsedId, bank: stage.pending.bank, cardType: stage.pending.cardType, cardVariant: null, usedPassword: "" } });
+      setStage({
+        type: "save_card",
+        pending: {
+          parsedId,
+          bank: stage.pending.bank,
+          cardType: stage.pending.cardType,
+          cardVariant: null,
+          usedPassword: "",
+        },
+      });
     } else {
       router.push(`/view-parsed?id=${parsedId}`);
     }
@@ -194,7 +238,10 @@ export default function UploadPage() {
             isLoading={stage.type === "ai_parsing"}
             error={error}
             onAiParse={handleAiParse}
-            onBack={() => { setStage({ type: "idle" }); setError(null); }}
+            onBack={() => {
+              setStage({ type: "idle" });
+              setError(null);
+            }}
           />
         ) : (
           <UploadForm
@@ -240,8 +287,8 @@ function UnknownBankPanel({
           Bank not recognized
         </h2>
         <p className="text-sm text-text-secondary mb-6 max-w-sm">
-          This bank isn&apos;t in our built-in library yet. Use AI to parse the statement —
-          it reads any format and learns the pattern for next time.
+          This bank isn&apos;t in our built-in library yet. Use AI to parse the
+          statement — it reads any format and learns the pattern for next time.
         </p>
 
         {error && (

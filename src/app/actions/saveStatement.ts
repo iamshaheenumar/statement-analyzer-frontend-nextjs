@@ -9,6 +9,19 @@ import type {
 import { Prisma as PrismaNS } from "@prisma/client";
 import { categorizeDescriptions } from "@/lib/categorize";
 
+// Accepts ISO (YYYY-MM-DD) or DD-MM-YYYY
+function parseDate(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  let date: Date;
+  if (/^\d{2}-\d{2}-\d{4}$/.test(value)) {
+    const [dd, mm, yyyy] = value.split("-");
+    date = new Date(`${yyyy}-${mm}-${dd}`);
+  } else {
+    date = new Date(value);
+  }
+  return isNaN(date.getTime()) ? null : date;
+}
+
 type ParsedData = DashboardParsedData & { id?: string };
 type Transaction = DashboardTransaction;
 
@@ -20,7 +33,7 @@ export async function saveStatementAction(data: ParsedData) {
     if (!data) throw new Error("Empty body");
 
     const {
-      id, bank, summary, transactions, from_date, to_date, issued_date, card_type, card_variant, currency,
+      id, bank, summary, transactions, from_date, to_date, issued_date, due_date, card_type, card_variant, currency,
       credit_limit, available_credit, min_payment_due, total_outstanding, total_amount_due,
     } = data;
 
@@ -38,7 +51,8 @@ export async function saveStatementAction(data: ParsedData) {
     const categoryMap = await categorizeDescriptions(descriptions, user.id);
 
     const summaryFields = {
-      issued_date: issued_date ? new Date(issued_date as string) : null,
+      issued_date: parseDate(issued_date as string),
+      due_date: parseDate(due_date as string),
       card_variant: card_variant || null,
       credit_limit: (credit_limit as any) ?? null,
       available_credit: (available_credit as any) ?? null,
@@ -109,6 +123,9 @@ export async function saveStatementAction(data: ParsedData) {
         };
       }
       return { error: err.message, code: err.code };
+    }
+    if (err instanceof PrismaNS.PrismaClientValidationError) {
+      return { error: "Invalid data — one or more fields could not be saved. Check dates and numeric values." };
     }
     return { error: err?.message || "Failed to save" };
   }

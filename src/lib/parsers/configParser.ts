@@ -9,7 +9,8 @@ export type ParserConfigData = {
   keywordsPage?: number;
   // Card variant string used for tier-1 detection matching (e.g. "titanium credit card")
   cardVariant?: string;
-  rowPattern: string;
+  // Supports ranked fallback arrays — parser tries each in order until one matches
+  rowPattern: string | string[];
   groups: {
     date: number;
     description: number;
@@ -19,18 +20,20 @@ export type ParserConfigData = {
   dateFormat: string;
   creditKeywords?: string[];
   creditFlag?: string;
-  periodFrom?: string;
-  periodTo?: string;
-  dueDatePattern?: string;
+  periodFrom?: string | string[];
+  periodTo?: string | string[];
+  dueDatePattern?: string | string[];
   columnHeaders?: string[];
   // Summary field extraction patterns (group 1 captures the value)
-  issuedDatePattern?: string;
+  issuedDatePattern?: string | string[];
   cardVariantPattern?: string;
   creditLimitPattern?: string;
   availableCreditPattern?: string;
   minPaymentPattern?: string;
   totalOutstandingPattern?: string;
   totalAmountDuePattern?: string;
+  // Metadata stored by multi-sample wizard (not used in parsing)
+  _meta?: { confidence: Record<string, number>; sampleCount: number };
 };
 
 function extractNumber(line: string, re: RegExp): number | null {
@@ -43,6 +46,21 @@ function extractNumber(line: string, re: RegExp): number | null {
 function extractText(line: string, re: RegExp): string | null {
   const m = line.match(re);
   return m?.[1]?.trim() || null;
+}
+
+function compilePatterns(p: string | string[] | undefined, flags?: string): RegExp[] {
+  if (!p) return [];
+  return (Array.isArray(p) ? p : [p]).flatMap(src => {
+    try { return [new RegExp(src, flags)]; } catch { return []; }
+  });
+}
+
+function firstMatch(line: string, regexes: RegExp[]): RegExpMatchArray | null {
+  for (const re of regexes) {
+    const m = line.match(re);
+    if (m) return m;
+  }
+  return null;
 }
 
 export function parseWithConfig(pages: PageContent[], config: ParserConfigData): ParseResult {
@@ -60,11 +78,14 @@ export function parseWithConfig(pages: PageContent[], config: ParserConfigData):
   let totalOutstanding: number | null = null;
   let totalAmountDue: number | null = null;
 
-  let rowRegex: RegExp;
-  let fromRegex: RegExp | null = null;
-  let toRegex: RegExp | null = null;
-  let dueDateRegex: RegExp | null = null;
-  let issuedDateRegex: RegExp | null = null;
+  const fallbackCurrency = config.currency || 'AED';
+
+  const rowRegexes = compilePatterns(config.rowPattern);
+  const fromRegexes = compilePatterns(config.periodFrom, 'i');
+  const toRegexes = compilePatterns(config.periodTo, 'i');
+  const dueDateRegexes = compilePatterns(config.dueDatePattern, 'i');
+  const issuedDateRegexes = compilePatterns(config.issuedDatePattern, 'i');
+
   let cardVariantRegex: RegExp | null = null;
   let creditLimitRegex: RegExp | null = null;
   let availableCreditRegex: RegExp | null = null;
@@ -72,21 +93,16 @@ export function parseWithConfig(pages: PageContent[], config: ParserConfigData):
   let totalOutstandingRegex: RegExp | null = null;
   let totalAmountDueRegex: RegExp | null = null;
 
-  const fallbackCurrency = config.currency || 'AED';
-
   try {
-    rowRegex = new RegExp(config.rowPattern);
-    if (config.periodFrom) fromRegex = new RegExp(config.periodFrom, 'i');
-    if (config.periodTo) toRegex = new RegExp(config.periodTo, 'i');
-    if (config.dueDatePattern) dueDateRegex = new RegExp(config.dueDatePattern, 'i');
-    if (config.issuedDatePattern) issuedDateRegex = new RegExp(config.issuedDatePattern, 'i');
     if (config.cardVariantPattern) cardVariantRegex = new RegExp(config.cardVariantPattern, 'i');
     if (config.creditLimitPattern) creditLimitRegex = new RegExp(config.creditLimitPattern, 'i');
     if (config.availableCreditPattern) availableCreditRegex = new RegExp(config.availableCreditPattern, 'i');
     if (config.minPaymentPattern) minPaymentRegex = new RegExp(config.minPaymentPattern, 'i');
     if (config.totalOutstandingPattern) totalOutstandingRegex = new RegExp(config.totalOutstandingPattern, 'i');
     if (config.totalAmountDuePattern) totalAmountDueRegex = new RegExp(config.totalAmountDuePattern, 'i');
-  } catch {
+  } catch { /* continue without broken summary patterns */ }
+
+  if (rowRegexes.length === 0) {
     return {
       bank: config.bankName,
       card_type: config.cardType,
@@ -100,20 +116,20 @@ export function parseWithConfig(pages: PageContent[], config: ParserConfigData):
 
   for (const { lines } of pages) {
     for (const line of lines) {
-      if (fromRegex && !statementFrom) {
-        const m = line.match(fromRegex);
+      if (fromRegexes.length && !statementFrom) {
+        const m = firstMatch(line, fromRegexes);
         if (m?.[1]) statementFrom = normalizeDate(m[1], config.dateFormat) || m[1];
       }
-      if (toRegex && !statementTo) {
-        const m = line.match(toRegex);
+      if (toRegexes.length && !statementTo) {
+        const m = firstMatch(line, toRegexes);
         if (m?.[1]) statementTo = normalizeDate(m[1], config.dateFormat) || m[1];
       }
-      if (dueDateRegex && !statementDueDate) {
-        const m = line.match(dueDateRegex);
+      if (dueDateRegexes.length && !statementDueDate) {
+        const m = firstMatch(line, dueDateRegexes);
         if (m?.[1]) statementDueDate = normalizeDate(m[1], config.dateFormat) || m[1];
       }
-      if (issuedDateRegex && !issuedDate) {
-        const m = line.match(issuedDateRegex);
+      if (issuedDateRegexes.length && !issuedDate) {
+        const m = firstMatch(line, issuedDateRegexes);
         if (m?.[1]) issuedDate = normalizeDate(m[1], config.dateFormat) || m[1];
       }
       if (cardVariantRegex && !cardVariant) {
@@ -135,7 +151,7 @@ export function parseWithConfig(pages: PageContent[], config: ParserConfigData):
         totalAmountDue = extractNumber(line, totalAmountDueRegex);
       }
 
-      const m = line.match(rowRegex);
+      const m = firstMatch(line, rowRegexes);
       if (!m) continue;
 
       const g = config.groups;

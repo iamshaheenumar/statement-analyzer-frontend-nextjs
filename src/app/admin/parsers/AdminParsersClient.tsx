@@ -17,11 +17,10 @@ import {
 import {
   approveParserAction,
   rejectParserAction,
-  updateParserRulesAction,
   toggleParserActiveAction,
   deleteParserAdminAction,
 } from "@/app/actions/admin";
-import CreateParserWizard from "./CreateParserWizard";
+import MultiSampleWizard from "./MultiSampleWizard";
 import UpdateParserWizard from "./UpdateParserWizard";
 
 interface ParserRow {
@@ -35,6 +34,7 @@ interface ParserRow {
   status: string;
   createdAt: string;
   rawPageContent: Array<{ page: number; lines: string[]; text: string }> | null;
+  statementCount: number;
 }
 
 interface Props {
@@ -162,43 +162,46 @@ function PendingParserCard({
   );
 }
 
+function ConfidenceBadge({ value }: { value: number }) {
+  const pct = Math.round(value * 100);
+  const colors =
+    pct >= 80
+      ? "bg-success-muted text-success border-success/20"
+      : pct >= 50
+      ? "bg-warning-muted text-warning border-warning/20"
+      : "bg-danger-muted text-danger border-danger/20";
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full border ${colors}`}>
+      {pct}% confidence
+    </span>
+  );
+}
+
 function ActiveParserCard({
   parser,
   onToggleActive,
-  onUpdateRules,
   onDelete,
 }: {
   parser: ParserRow;
   onToggleActive: (id: string, active: boolean) => void;
-  onUpdateRules: (id: string, creditKeywords: string[], creditFlag: string, keywordsPage: number | undefined, detectionKeywords: string[], columnHeaders?: string[]) => void;
   onDelete: (id: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [showUpdateWizard, setShowUpdateWizard] = useState(false);
   const [toggling, startToggle] = useTransition();
-  const [saving, startSave] = useTransition();
   const [deleting, startDelete] = useTransition();
 
-  const existingCreditKeywords = (parser.config.creditKeywords as string[] | undefined) ?? [];
-  const existingFlag = (parser.config.creditFlag as string | undefined) ?? "";
-  const existingKeywordsPage = (parser.config.keywordsPage as number | undefined);
-  const existingColumnHeaders = (parser.config.columnHeaders as string[] | undefined) ?? [];
+  const creditKeywords = (parser.config.creditKeywords as string[] | undefined) ?? [];
+  const creditFlag = (parser.config.creditFlag as string | undefined) ?? "";
+  const keywordsPage = (parser.config.keywordsPage as number | undefined);
+  const columnHeaders = (parser.config.columnHeaders as string[] | undefined) ?? [];
 
-  const [detectionKeywordsText, setDetectionKeywordsText] = useState(parser.keywords.join(", "));
-  const [creditKeywordsText, setCreditKeywordsText] = useState(existingCreditKeywords.join(", "));
-  const [creditFlag, setCreditFlag] = useState(existingFlag);
-  const [keywordsPageMode, setKeywordsPageMode] = useState<"any" | "page1">(
-    existingKeywordsPage === 1 ? "page1" : "any"
-  );
-  const [columnHeadersText, setColumnHeadersText] = useState(existingColumnHeaders.join(", "));
-
-  function handleSaveRules() {
-    const detection = detectionKeywordsText.split(",").map((k) => k.trim()).filter(Boolean);
-    const credit = creditKeywordsText.split(",").map((k) => k.trim()).filter(Boolean);
-    const kp = keywordsPageMode === "page1" ? 1 : undefined;
-    const colHeaders = columnHeadersText.split(",").map((h) => h.trim()).filter(Boolean);
-    startSave(() => onUpdateRules(parser.id, credit, creditFlag, kp, detection, colHeaders));
-  }
+  const meta = parser.config._meta as { confidence?: Record<string, number> } | undefined;
+  const confidenceScores = meta?.confidence ? Object.values(meta.confidence) : [];
+  const avgConfidence =
+    confidenceScores.length > 0
+      ? confidenceScores.reduce((a, b) => a + b, 0) / confidenceScores.length
+      : null;
 
   return (
     <>
@@ -209,6 +212,10 @@ function ActiveParserCard({
             <div className="flex items-center gap-2 flex-wrap mb-2">
               <p className="text-sm font-bold text-text-primary">{parser.bank}</p>
               <StatusBadge status={parser.status} />
+              {avgConfidence !== null && <ConfidenceBadge value={avgConfidence} />}
+              <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full border bg-elevated text-text-secondary border-border/50">
+                {parser.statementCount} {parser.statementCount === 1 ? "statement" : "statements"}
+              </span>
               {parser.source === "admin" && (
                 <span className="text-xs text-text-muted">Admin-created</span>
               )}
@@ -271,79 +278,39 @@ function ActiveParserCard({
         <div className="border-t border-border bg-base px-4 py-4 space-y-4">
           <div>
             <p className="text-xs font-semibold text-text-secondary mb-1.5">Detection Keywords</p>
-            <textarea
-              value={detectionKeywordsText}
-              onChange={(e) => setDetectionKeywordsText(e.target.value)}
-              placeholder="commercial bank of dubai, cbd.ae, statement of account"
-              rows={2}
-              className="w-full px-3 py-2 text-xs text-text-primary border border-border rounded-lg bg-surface placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent resize-none"
-            />
-            <p className="text-xs text-text-muted mt-1">Comma-separated. ALL keywords must appear in the PDF (AND logic) to select this parser.</p>
+            <p className="text-xs font-mono text-text-primary px-3 py-2 bg-surface border border-border rounded-lg">
+              {parser.keywords.join(", ") || <span className="text-text-muted italic">None</span>}
+            </p>
+            <p className="text-xs text-text-muted mt-1">ALL keywords must appear in the PDF (AND logic) to select this parser.</p>
           </div>
           <div>
             <p className="text-xs font-semibold text-text-secondary mb-1.5">Credit Keywords</p>
-            <textarea
-              value={creditKeywordsText}
-              onChange={(e) => setCreditKeywordsText(e.target.value)}
-              placeholder="refund, cashback, credit, reversal"
-              rows={2}
-              className="w-full px-3 py-2 text-xs text-text-primary border border-border rounded-lg bg-surface placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent resize-none"
-            />
-            <p className="text-xs text-text-muted mt-1">Comma-separated. Descriptions matching any keyword are treated as credits (money IN).</p>
+            <p className="text-xs font-mono text-text-primary px-3 py-2 bg-surface border border-border rounded-lg">
+              {creditKeywords.length > 0 ? creditKeywords.join(", ") : <span className="text-text-muted italic">None</span>}
+            </p>
+            <p className="text-xs text-text-muted mt-1">Descriptions matching any keyword are treated as credits (money IN).</p>
           </div>
           <div>
             <p className="text-xs font-semibold text-text-secondary mb-1.5">Credit Flag</p>
-            <input
-              type="text"
-              value={creditFlag}
-              onChange={(e) => setCreditFlag(e.target.value)}
-              placeholder="CR"
-              className="w-48 px-3 py-2 text-xs text-text-primary border border-border rounded-lg bg-surface placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent font-mono"
-            />
+            <p className="text-xs font-mono text-text-primary px-3 py-2 bg-surface border border-border rounded-lg w-48">
+              {creditFlag || <span className="text-text-muted italic">None</span>}
+            </p>
             <p className="text-xs text-text-muted mt-1">Token in the amount column that flags a credit row (e.g. &quot;CR&quot;).</p>
           </div>
           <div>
             <p className="text-xs font-semibold text-text-secondary mb-1.5">Keyword Search Scope</p>
-            <div className="flex gap-2">
-              {(["any", "page1"] as const).map((mode) => (
-                <button
-                  key={mode}
-                  onClick={() => setKeywordsPageMode(mode)}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
-                    keywordsPageMode === mode
-                      ? "bg-accent text-black border-accent"
-                      : "bg-elevated text-text-muted border-border hover:text-text-secondary"
-                  }`}
-                >
-                  {mode === "any" ? "Any page" : "Page 1 only"}
-                </button>
-              ))}
+            <p className="text-xs text-text-primary px-3 py-2 bg-surface border border-border rounded-lg w-fit">
+              {keywordsPage === 1 ? "Page 1 only" : "Any page"}
+            </p>
+          </div>
+          {columnHeaders.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-text-secondary mb-1.5">Column Headers</p>
+              <p className="text-xs font-mono text-text-primary px-3 py-2 bg-surface border border-border rounded-lg">
+                {columnHeaders.join(", ")}
+              </p>
             </div>
-            <p className="text-xs text-text-muted mt-1">
-              &ldquo;Page 1 only&rdquo; restricts keyword matching to the cover page — useful when the bank name only appears in the header.
-            </p>
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-text-secondary mb-1.5">Column Headers</p>
-            <input
-              type="text"
-              value={columnHeadersText}
-              onChange={(e) => setColumnHeadersText(e.target.value)}
-              placeholder="Date, Transaction Description, Transaction Currency, Transaction Amount, FX Rate, Total Amount (AED)"
-              className="w-full px-3 py-2 text-xs text-text-primary border border-border rounded-lg bg-surface placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent"
-            />
-            <p className="text-xs text-text-muted mt-1">
-              Comma-separated column names in order of regex capture groups. When set, the original statement table is shown before saving.
-            </p>
-          </div>
-          <button
-            onClick={handleSaveRules}
-            disabled={saving}
-            className="flex items-center gap-1.5 px-4 py-2 bg-accent hover:bg-accent/90 disabled:bg-elevated disabled:text-text-muted text-black text-xs font-semibold rounded-lg transition-colors"
-          >
-            {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-            {saving ? "Saving…" : "Save Rules"}
-          </button>
+          )}
         </div>
       )}
     </div>
@@ -381,11 +348,6 @@ export default function AdminParsersClient({ parsers }: Props) {
     } catch { toast.error("Failed to update parser."); }
   }
 
-  async function handleUpdateRules(id: string, creditKeywords: string[], creditFlag: string, keywordsPage: number | undefined, detectionKeywords: string[], columnHeaders?: string[]) {
-    try { await updateParserRulesAction(id, creditKeywords, creditFlag, keywordsPage, detectionKeywords, columnHeaders); toast.success("Rules saved."); }
-    catch { toast.error("Failed to save rules."); }
-  }
-
   async function handleDelete(id: string) {
     try { await deleteParserAdminAction(id); toast.success("Parser deleted."); }
     catch { toast.error("Failed to delete parser."); }
@@ -411,10 +373,10 @@ export default function AdminParsersClient({ parsers }: Props) {
       </div>
 
       {showCreatePanel && (
-        <CreateParserWizard onClose={() => setShowCreatePanel(false)} />
+        <MultiSampleWizard onClose={() => setShowCreatePanel(false)} />
       )}
       {reviewSubmission && (
-        <CreateParserWizard
+        <MultiSampleWizard
           onClose={() => setReviewSubmission(null)}
           initialPages={reviewSubmission.rawPageContent ?? []}
           pendingSubmissionId={reviewSubmission.id}
@@ -467,7 +429,6 @@ export default function AdminParsersClient({ parsers }: Props) {
                 key={p.id}
                 parser={p}
                 onToggleActive={handleToggleActive}
-                onUpdateRules={handleUpdateRules}
                 onDelete={handleDelete}
               />
             ))}

@@ -23,6 +23,7 @@ model Statement {
   min_payment_due  Decimal?
   total_outstanding Decimal?
   total_amount_due Decimal?
+  due_date         DateTime?
   recordCount      Int
   totalDebit       Decimal
   totalCredit      Decimal

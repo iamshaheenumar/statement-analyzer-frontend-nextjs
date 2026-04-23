@@ -19,6 +19,9 @@ async function getStatements(userId: string) {
         currency: s.currency,
         from_date: s.from_date,
         to_date: s.to_date,
+        due_date: s.due_date,
+        total_amount_due: s.total_amount_due ? Number(s.total_amount_due) : null,
+        min_payment_due: s.min_payment_due ? Number(s.min_payment_due) : null,
         summary: {
           record_count: s.recordCount,
           total_debit: Number(s.totalDebit),

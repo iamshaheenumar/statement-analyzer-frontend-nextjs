@@ -108,6 +108,7 @@ export async function createAdminParserAction(data: {
   config: ParserConfigData;
   rawPageContent?: Array<{ page: number; lines: string[]; text: string }>;
   pendingSubmissionId?: string;
+  active?: boolean;
 }) {
   await requireAdmin();
 
@@ -119,8 +120,8 @@ export async function createAdminParserAction(data: {
       keywords: data.keywords,
       config: data.config as any,
       source: "admin",
-      active: true,
-      status: "approved",
+      active: data.active ?? true,
+      status: data.active === false ? "pending" : "approved",
       ...(data.rawPageContent ? { rawPageContent: data.rawPageContent as any } : {}),
     },
   });

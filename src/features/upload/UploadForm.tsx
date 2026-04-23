@@ -213,7 +213,15 @@ export default function UploadForm({
           )}
 
           {/* Password field */}
-          {file && isPasswordProtected && (
+          {file && isPasswordProtected && selectedCard?.password ? (
+            <div className="flex items-center gap-2.5 px-3 py-2.5 bg-elevated border border-border rounded-lg">
+              <Lock className="w-4 h-4 text-accent flex-shrink-0" />
+              <p className="text-xs text-text-secondary">
+                Using saved password for{" "}
+                <span className="font-medium text-text-primary">{cardLabel(selectedCard)}</span>
+              </p>
+            </div>
+          ) : file && isPasswordProtected ? (
             <div>
               <label className="block text-xs font-medium text-text-secondary mb-2">
                 Password <span className="text-danger">*</span>
@@ -233,7 +241,7 @@ export default function UploadForm({
                 />
               </div>
             </div>
-          )}
+          ) : null}
 
           {/* Error banner */}
           {error && (
