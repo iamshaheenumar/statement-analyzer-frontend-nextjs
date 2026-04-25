@@ -553,6 +553,8 @@ export default function MultiSampleWizard({
                 confidence={analysisResult.confidence.periodFrom}
                 sampleLines={analysisResult.statementPeriod.sampleLines}
                 onChange={v => updateConfig({ periodFrom: v || undefined })}
+                window={editableConfig.periodFromWindow}
+                onWindowChange={v => updateConfig({ periodFromWindow: v })}
               />
               <PatternField
                 label="Period To Pattern"
@@ -560,6 +562,8 @@ export default function MultiSampleWizard({
                 confidence={analysisResult.confidence.periodTo}
                 sampleLines={analysisResult.statementPeriod.sampleLines}
                 onChange={v => updateConfig({ periodTo: v || undefined })}
+                window={editableConfig.periodToWindow}
+                onWindowChange={v => updateConfig({ periodToWindow: v })}
               />
               <PatternField
                 label="Issued Date Pattern"
@@ -567,6 +571,8 @@ export default function MultiSampleWizard({
                 confidence={analysisResult.confidence.issuedDate}
                 sampleLines={analysisResult.statementPeriod.sampleLines}
                 onChange={v => updateConfig({ issuedDatePattern: v || undefined })}
+                window={editableConfig.issuedDateWindow}
+                onWindowChange={v => updateConfig({ issuedDateWindow: v })}
               />
               <PatternField
                 label="Due Date Pattern"
@@ -574,6 +580,8 @@ export default function MultiSampleWizard({
                 confidence={analysisResult.confidence.dueDate}
                 sampleLines={analysisResult.statementPeriod.sampleLines}
                 onChange={v => updateConfig({ dueDatePattern: v || undefined })}
+                window={editableConfig.dueDateWindow}
+                onWindowChange={v => updateConfig({ dueDateWindow: v })}
               />
             </section>
 
@@ -607,22 +615,22 @@ export default function MultiSampleWizard({
               <section className="space-y-3 border-t border-border pt-4">
                 <h4 className="text-xs font-semibold text-text-muted uppercase tracking-widest">Summary Field Patterns</h4>
                 {([
-                  ['Credit Limit', 'creditLimitPattern', 'creditLimit'],
-                  ['Available Credit', 'availableCreditPattern', 'availableCredit'],
-                  ['Min Payment', 'minPaymentPattern', 'minPayment'],
-                  ['Total Outstanding', 'totalOutstandingPattern', 'totalOutstanding'],
-                  ['Total Amount Due', 'totalAmountDuePattern', 'totalAmountDue'],
-                ] as [string, keyof ParserConfigData, keyof typeof analysisResult.confidence][]).map(([label, key, confKey]) => (
-                  <div key={key}>
-                    <label className="block text-xs font-semibold text-text-primary mb-1">{label} Pattern</label>
-                    <textarea
-                      value={(editableConfig[key] as string) || ''}
-                      onChange={e => updateConfig({ [key]: e.target.value || undefined })}
-                      rows={1}
-                      spellCheck={false}
-                      className="w-full px-3 py-2 text-xs font-mono text-text-primary border border-border rounded-lg bg-base focus:outline-none focus:ring-2 focus:ring-accent resize-none"
-                    />
-                  </div>
+                  ['Credit Limit', 'creditLimitPattern', 'creditLimit', 'creditLimitWindow'],
+                  ['Available Credit', 'availableCreditPattern', 'availableCredit', 'availableCreditWindow'],
+                  ['Min Payment', 'minPaymentPattern', 'minPayment', 'minPaymentWindow'],
+                  ['Total Outstanding', 'totalOutstandingPattern', 'totalOutstanding', 'totalOutstandingWindow'],
+                  ['Total Amount Due', 'totalAmountDuePattern', 'totalAmountDue', 'totalAmountDueWindow'],
+                ] as [string, keyof ParserConfigData, string, keyof ParserConfigData][]).map(([label, key, confKey, windowKey]) => (
+                  <PatternField
+                    key={key as string}
+                    label={`${label} Pattern`}
+                    value={(editableConfig[key] as string | string[]) || ''}
+                    confidence={analysisResult.confidence[confKey]}
+                    sampleLines={analysisResult.summaryFields.sampleLines}
+                    onChange={v => updateConfig({ [key]: v || undefined })}
+                    window={editableConfig[windowKey] as number | undefined}
+                    onWindowChange={v => updateConfig({ [windowKey]: v })}
+                  />
                 ))}
               </section>
             )}

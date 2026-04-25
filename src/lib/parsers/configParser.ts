@@ -26,12 +26,24 @@ export type ParserConfigData = {
   columnHeaders?: string[];
   // Summary field extraction patterns (group 1 captures the value)
   issuedDatePattern?: string | string[];
-  cardVariantPattern?: string;
-  creditLimitPattern?: string;
-  availableCreditPattern?: string;
-  minPaymentPattern?: string;
-  totalOutstandingPattern?: string;
-  totalAmountDuePattern?: string;
+  cardVariantPattern?: string | string[];
+  creditLimitPattern?: string | string[];
+  availableCreditPattern?: string | string[];
+  minPaymentPattern?: string | string[];
+  totalOutstandingPattern?: string | string[];
+  totalAmountDuePattern?: string | string[];
+  // Line-window search: positive = scan N lines forward, negative = scan N lines backward.
+  // When set, the pattern acts as a label anchor and the value is extracted from nearby lines.
+  periodFromWindow?: number;
+  periodToWindow?: number;
+  dueDateWindow?: number;
+  issuedDateWindow?: number;
+  cardVariantWindow?: number;
+  creditLimitWindow?: number;
+  availableCreditWindow?: number;
+  minPaymentWindow?: number;
+  totalOutstandingWindow?: number;
+  totalAmountDueWindow?: number;
   // Metadata stored by multi-sample wizard (not used in parsing)
   _meta?: { confidence: Record<string, number>; sampleCount: number };
 };
@@ -46,6 +58,33 @@ function extractNumber(line: string, re: RegExp): number | null {
 function extractText(line: string, re: RegExp): string | null {
   const m = line.match(re);
   return m?.[1]?.trim() || null;
+}
+
+function extractFirstNumber(line: string): number | null {
+  const m = line.match(/([\d,]+\.?\d*)/);
+  if (!m) return null;
+  const n = parseFloat(m[1].replace(/,/g, ''));
+  return isNaN(n) ? null : n;
+}
+
+function extractFirstDate(line: string): string | null {
+  const m = line.match(/(\d{1,2}[/\-.]\d{1,2}[/\-.]\d{2,4}|\d{4}[/\-.]\d{1,2}[/\-.]\d{1,2})/);
+  return m?.[1] ?? null;
+}
+
+function scanWindow(
+  lines: string[], i: number, window: number,
+  extract: (l: string) => number | string | null
+): number | string | null {
+  const step = window > 0 ? 1 : -1;
+  const limit = Math.abs(window);
+  for (let k = 1; k <= limit; k++) {
+    const idx = i + step * k;
+    if (idx < 0 || idx >= lines.length) break;
+    const val = extract(lines[idx]);
+    if (val !== null) return val;
+  }
+  return null;
 }
 
 function compilePatterns(p: string | string[] | undefined, flags?: string): RegExp[] {
@@ -86,21 +125,12 @@ export function parseWithConfig(pages: PageContent[], config: ParserConfigData):
   const dueDateRegexes = compilePatterns(config.dueDatePattern, 'i');
   const issuedDateRegexes = compilePatterns(config.issuedDatePattern, 'i');
 
-  let cardVariantRegex: RegExp | null = null;
-  let creditLimitRegex: RegExp | null = null;
-  let availableCreditRegex: RegExp | null = null;
-  let minPaymentRegex: RegExp | null = null;
-  let totalOutstandingRegex: RegExp | null = null;
-  let totalAmountDueRegex: RegExp | null = null;
-
-  try {
-    if (config.cardVariantPattern) cardVariantRegex = new RegExp(config.cardVariantPattern, 'i');
-    if (config.creditLimitPattern) creditLimitRegex = new RegExp(config.creditLimitPattern, 'i');
-    if (config.availableCreditPattern) availableCreditRegex = new RegExp(config.availableCreditPattern, 'i');
-    if (config.minPaymentPattern) minPaymentRegex = new RegExp(config.minPaymentPattern, 'i');
-    if (config.totalOutstandingPattern) totalOutstandingRegex = new RegExp(config.totalOutstandingPattern, 'i');
-    if (config.totalAmountDuePattern) totalAmountDueRegex = new RegExp(config.totalAmountDuePattern, 'i');
-  } catch { /* continue without broken summary patterns */ }
+  const cardVariantRegexes = compilePatterns(config.cardVariantPattern, 'i');
+  const creditLimitRegexes = compilePatterns(config.creditLimitPattern, 'i');
+  const availableCreditRegexes = compilePatterns(config.availableCreditPattern, 'i');
+  const minPaymentRegexes = compilePatterns(config.minPaymentPattern, 'i');
+  const totalOutstandingRegexes = compilePatterns(config.totalOutstandingPattern, 'i');
+  const totalAmountDueRegexes = compilePatterns(config.totalAmountDuePattern, 'i');
 
   if (rowRegexes.length === 0) {
     return {
@@ -115,40 +145,86 @@ export function parseWithConfig(pages: PageContent[], config: ParserConfigData):
   }
 
   for (const { lines } of pages) {
-    for (const line of lines) {
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
       if (fromRegexes.length && !statementFrom) {
         const m = firstMatch(line, fromRegexes);
-        if (m?.[1]) statementFrom = normalizeDate(m[1], config.dateFormat) || m[1];
+        if (m?.[1]) {
+          statementFrom = normalizeDate(m[1], config.dateFormat) || m[1];
+        } else if (config.periodFromWindow && fromRegexes.some(re => re.test(line))) {
+          const raw = scanWindow(lines, i, config.periodFromWindow, extractFirstDate) as string | null;
+          if (raw) statementFrom = normalizeDate(raw, config.dateFormat) || raw;
+        }
       }
       if (toRegexes.length && !statementTo) {
         const m = firstMatch(line, toRegexes);
-        if (m?.[1]) statementTo = normalizeDate(m[1], config.dateFormat) || m[1];
+        if (m?.[1]) {
+          statementTo = normalizeDate(m[1], config.dateFormat) || m[1];
+        } else if (config.periodToWindow && toRegexes.some(re => re.test(line))) {
+          const raw = scanWindow(lines, i, config.periodToWindow, extractFirstDate) as string | null;
+          if (raw) statementTo = normalizeDate(raw, config.dateFormat) || raw;
+        }
       }
       if (dueDateRegexes.length && !statementDueDate) {
         const m = firstMatch(line, dueDateRegexes);
-        if (m?.[1]) statementDueDate = normalizeDate(m[1], config.dateFormat) || m[1];
+        if (m?.[1]) {
+          statementDueDate = normalizeDate(m[1], config.dateFormat) || m[1];
+        } else if (config.dueDateWindow && dueDateRegexes.some(re => re.test(line))) {
+          const raw = scanWindow(lines, i, config.dueDateWindow, extractFirstDate) as string | null;
+          if (raw) statementDueDate = normalizeDate(raw, config.dateFormat) || raw;
+        }
       }
       if (issuedDateRegexes.length && !issuedDate) {
         const m = firstMatch(line, issuedDateRegexes);
-        if (m?.[1]) issuedDate = normalizeDate(m[1], config.dateFormat) || m[1];
+        if (m?.[1]) {
+          issuedDate = normalizeDate(m[1], config.dateFormat) || m[1];
+        } else if (config.issuedDateWindow && issuedDateRegexes.some(re => re.test(line))) {
+          const raw = scanWindow(lines, i, config.issuedDateWindow, extractFirstDate) as string | null;
+          if (raw) issuedDate = normalizeDate(raw, config.dateFormat) || raw;
+        }
       }
-      if (cardVariantRegex && !cardVariant) {
-        cardVariant = extractText(line, cardVariantRegex);
+      if (cardVariantRegexes.length && !cardVariant) {
+        const m = firstMatch(line, cardVariantRegexes);
+        if (m?.[1]) cardVariant = m[1].trim();
+        if (!cardVariant && config.cardVariantWindow && cardVariantRegexes.some(re => re.test(line))) {
+          cardVariant = scanWindow(lines, i, config.cardVariantWindow, l => l.trim() || null) as string | null;
+        }
       }
-      if (creditLimitRegex && creditLimit === null) {
-        creditLimit = extractNumber(line, creditLimitRegex);
+      if (creditLimitRegexes.length && creditLimit === null) {
+        const m = firstMatch(line, creditLimitRegexes);
+        if (m?.[1]) { const n = parseFloat(m[1].replace(/,/g, '')); if (!isNaN(n)) creditLimit = n; }
+        if (creditLimit === null && config.creditLimitWindow && creditLimitRegexes.some(re => re.test(line))) {
+          creditLimit = scanWindow(lines, i, config.creditLimitWindow, extractFirstNumber) as number | null;
+        }
       }
-      if (availableCreditRegex && availableCredit === null) {
-        availableCredit = extractNumber(line, availableCreditRegex);
+      if (availableCreditRegexes.length && availableCredit === null) {
+        const m = firstMatch(line, availableCreditRegexes);
+        if (m?.[1]) { const n = parseFloat(m[1].replace(/,/g, '')); if (!isNaN(n)) availableCredit = n; }
+        if (availableCredit === null && config.availableCreditWindow && availableCreditRegexes.some(re => re.test(line))) {
+          availableCredit = scanWindow(lines, i, config.availableCreditWindow, extractFirstNumber) as number | null;
+        }
       }
-      if (minPaymentRegex && minPaymentDue === null) {
-        minPaymentDue = extractNumber(line, minPaymentRegex);
+      if (minPaymentRegexes.length && minPaymentDue === null) {
+        const m = firstMatch(line, minPaymentRegexes);
+        if (m?.[1]) { const n = parseFloat(m[1].replace(/,/g, '')); if (!isNaN(n)) minPaymentDue = n; }
+        if (minPaymentDue === null && config.minPaymentWindow && minPaymentRegexes.some(re => re.test(line))) {
+          minPaymentDue = scanWindow(lines, i, config.minPaymentWindow, extractFirstNumber) as number | null;
+        }
       }
-      if (totalOutstandingRegex && totalOutstanding === null) {
-        totalOutstanding = extractNumber(line, totalOutstandingRegex);
+      if (totalOutstandingRegexes.length && totalOutstanding === null) {
+        const m = firstMatch(line, totalOutstandingRegexes);
+        if (m?.[1]) { const n = parseFloat(m[1].replace(/,/g, '')); if (!isNaN(n)) totalOutstanding = n; }
+        if (totalOutstanding === null && config.totalOutstandingWindow && totalOutstandingRegexes.some(re => re.test(line))) {
+          totalOutstanding = scanWindow(lines, i, config.totalOutstandingWindow, extractFirstNumber) as number | null;
+        }
       }
-      if (totalAmountDueRegex && totalAmountDue === null) {
-        totalAmountDue = extractNumber(line, totalAmountDueRegex);
+      if (totalAmountDueRegexes.length && totalAmountDue === null) {
+        const m = firstMatch(line, totalAmountDueRegexes);
+        if (m?.[1]) { const n = parseFloat(m[1].replace(/,/g, '')); if (!isNaN(n)) totalAmountDue = n; }
+        if (totalAmountDue === null && config.totalAmountDueWindow && totalAmountDueRegexes.some(re => re.test(line))) {
+          totalAmountDue = scanWindow(lines, i, config.totalAmountDueWindow, extractFirstNumber) as number | null;
+        }
       }
 
       const m = firstMatch(line, rowRegexes);

@@ -111,7 +111,7 @@ export default function UploadPage() {
       return;
     }
 
-    router.push(`/view-parsed?id=${parsedId}`);
+    router.push(`/view-parsed/${parsedId}`);
   }
 
   const onSubmit = async (data: FormValues) => {
@@ -188,7 +188,7 @@ export default function UploadPage() {
         },
       });
     } else {
-      router.push(`/view-parsed?id=${parsedId}`);
+      router.push(`/view-parsed/${parsedId}`);
     }
   };
 
@@ -197,7 +197,7 @@ export default function UploadPage() {
     const id = stage.pending.parsedId;
     refreshCards();
     setStage({ type: "idle" });
-    router.push(`/view-parsed?id=${id}`);
+    router.push(`/view-parsed/${id}`);
   };
 
   return (
@@ -256,7 +256,7 @@ export default function UploadPage() {
           <div className="mt-8">
             <ParsedList
               parsedList={parsedList}
-              onSelect={(id) => router.push(`/view-parsed?id=${id}`)}
+              onSelect={(id) => router.push(`/view-parsed/${id}`)}
               onDelete={(id) => deleteParsed(id)}
             />
           </div>

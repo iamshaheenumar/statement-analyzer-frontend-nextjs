@@ -27,7 +27,7 @@ export default function ViewParsed({ id }: Props) {
   useEffect(() => {
     if (!loading) {
       if (!parsed && parsedList.length > 0 && !id) {
-        router.replace(`/view-parsed?id=${parsedList[parsedList.length - 1].id}`);
+        router.replace(`/view-parsed/${parsedList[parsedList.length - 1].id}`);
       }
       if (parsed) setParsedData(parsed);
     }

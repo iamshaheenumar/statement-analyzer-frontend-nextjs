@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Calendar, CreditCard, Sparkles, TrendingDown, TrendingUp, Wallet, Receipt } from "lucide-react";
+import { ArrowLeft, Calendar, CreditCard, Sparkles, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import SaveToCloudButton from "./SaveToCloudButton";
 import type { ParsedDataWithId } from "@/features/dashboard/types";
@@ -175,11 +175,6 @@ export default function ParsedHeader({
       {/* Stats row */}
       {parsedData?.summary && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          <StatCard
-            label="Transactions"
-            value={parsedData.summary.record_count}
-            icon={Receipt}
-          />
           {!isCredit && parsedData.summary.total_debit > 0 && (
             <StatCard
               label="Total Debit"

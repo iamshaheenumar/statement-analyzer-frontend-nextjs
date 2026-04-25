@@ -40,17 +40,17 @@ All other fields follow the standard format below.
   },
 
   "summaryFields": {
-    "cardVariantPattern": "JavaScript regex with group 1 capturing card variant name, or null",
+    "cardVariantPattern": { "primary": "label-anchor or same-line capture — see lineWindow rules below", "alternatives": [], "confidence": 0.9, "lineWindow": null } | null,
     "creditLimit": 50000.00 | null,
-    "creditLimitPattern": "JavaScript regex with group 1 capturing credit limit amount, or null",
+    "creditLimitPattern": { "primary": "label-anchor or same-line capture — see lineWindow rules below", "alternatives": [], "confidence": 0.9, "lineWindow": null } | null,
     "availableCredit": 32500.00 | null,
-    "availableCreditPattern": "JavaScript regex with group 1 capturing available credit amount, or null",
+    "availableCreditPattern": { "primary": "label-anchor or same-line capture — see lineWindow rules below", "alternatives": [], "confidence": 0.9, "lineWindow": null } | null,
     "minPaymentDue": 250.00 | null,
-    "minPaymentPattern": "JavaScript regex with group 1 capturing minimum payment amount, or null",
+    "minPaymentPattern": { "primary": "label-anchor or same-line capture — see lineWindow rules below", "alternatives": [], "confidence": 0.9, "lineWindow": null } | null,
     "totalOutstanding": 17500.00 | null,
-    "totalOutstandingPattern": "JavaScript regex with group 1 capturing total outstanding balance amount, or null",
+    "totalOutstandingPattern": { "primary": "label-anchor or same-line capture — see lineWindow rules below", "alternatives": [], "confidence": 0.9, "lineWindow": null } | null,
     "totalAmountDue": 17500.00 | null,
-    "totalAmountDuePattern": "JavaScript regex with group 1 capturing total amount due, or null",
+    "totalAmountDuePattern": { "primary": "label-anchor or same-line capture — see lineWindow rules below", "alternatives": [], "confidence": 0.9, "lineWindow": null } | null,
     "sampleLines": ["actual lines from the statement containing these summary values"]
   },
 
@@ -85,15 +85,28 @@ CRITICAL RULES:
 - identification.keywords must NOT include card type words ("credit", "debit", "card")
 - Amounts as plain decimals — no currency symbols, no commas
 - transactions array should include representative samples from the FIRST sample only (up to 20)
-- For patterns with confidence < 1.0, provide at least one alternative that covers the remaining samples`;
+- For patterns with confidence < 1.0, provide at least one alternative that covers the remaining samples
+- summaryFields lineWindow rules — READ CAREFULLY:
+  Each pattern is matched against ONE LINE AT A TIME. NEVER use \\n, [\\s\\S], or any multi-line construct in a summary field pattern.
+  Determine lineWindow by inspecting the sampleLines:
+  • lineWindow = null  → label and value are on the SAME line. The primary regex must capture the value in group 1.
+      Label line example: "Credit Limit  AED 50,000.00"
+      CORRECT: { "primary": "Credit Limit.*?([\\d,]+\\.\\d{2})", "lineWindow": null }
+  • lineWindow = 1     → value is on the NEXT line after the label. The primary regex is a label-only anchor — group 1 is NOT needed or used.
+      Label line example: "Total Amount Due* ﻟ ﻠ ﺪ ﻓ ﻊ..."   Next line: "12,483.50"
+      CORRECT: { "primary": "Total Amount Due\\*", "lineWindow": 1 }
+      WRONG:   { "primary": "Total Amount Due\\*[\\s\\S]*?\\n([\\d,]+\\.\\d{2})", "lineWindow": 1 }
+  • lineWindow = -1    → value is on the PREVIOUS line. Same rule: label-only anchor, no group 1.
+  • lineWindow = 2     → value is 2 lines after the label, and so on.`;
 
 interface PatternObj {
   primary: string;
   alternatives: string[];
   confidence: number;
+  lineWindow?: number;
 }
 
-function extractPatternField(raw: unknown): { primary: string; alternatives: string[]; confidence: number } | null {
+function extractPatternField(raw: unknown): PatternObj | null {
   if (!raw) return null;
   if (typeof raw === 'string') return { primary: raw, alternatives: [], confidence: 1.0 };
   if (typeof raw === 'object' && raw !== null) {
@@ -102,6 +115,7 @@ function extractPatternField(raw: unknown): { primary: string; alternatives: str
       primary: String(obj.primary || ''),
       alternatives: Array.isArray(obj.alternatives) ? obj.alternatives.map(String) : [],
       confidence: typeof obj.confidence === 'number' ? obj.confidence : 1.0,
+      lineWindow: typeof obj.lineWindow === 'number' ? obj.lineWindow : undefined,
     };
   }
   return null;
@@ -177,6 +191,13 @@ export async function POST(request: NextRequest) {
   const issuedPat = extractPatternField(sp.issuedDatePattern);
   const duePat = extractPatternField(sp.dueDatePattern);
 
+  const cardVariantPat = extractPatternField(sf.cardVariantPattern);
+  const creditLimitPat = extractPatternField(sf.creditLimitPattern);
+  const availableCreditPat = extractPatternField(sf.availableCreditPattern);
+  const minPaymentPat = extractPatternField(sf.minPaymentPattern);
+  const totalOutstandingPat = extractPatternField(sf.totalOutstandingPattern);
+  const totalAmountDuePat = extractPatternField(sf.totalAmountDuePattern);
+
   function toPatternField(pat: ReturnType<typeof extractPatternField>): string | string[] | undefined {
     if (!pat?.primary) return undefined;
     const all = [pat.primary, ...pat.alternatives].filter(Boolean);
@@ -208,12 +229,18 @@ export async function POST(request: NextRequest) {
     periodTo: toPatternField(toPat),
     issuedDatePattern: toPatternField(issuedPat),
     dueDatePattern: toPatternField(duePat),
-    cardVariantPattern: (sf.cardVariantPattern as string) || undefined,
-    creditLimitPattern: (sf.creditLimitPattern as string) || undefined,
-    availableCreditPattern: (sf.availableCreditPattern as string) || undefined,
-    minPaymentPattern: (sf.minPaymentPattern as string) || undefined,
-    totalOutstandingPattern: (sf.totalOutstandingPattern as string) || undefined,
-    totalAmountDuePattern: (sf.totalAmountDuePattern as string) || undefined,
+    cardVariantPattern: toPatternField(cardVariantPat),
+    creditLimitPattern: toPatternField(creditLimitPat),
+    availableCreditPattern: toPatternField(availableCreditPat),
+    minPaymentPattern: toPatternField(minPaymentPat),
+    totalOutstandingPattern: toPatternField(totalOutstandingPat),
+    totalAmountDuePattern: toPatternField(totalAmountDuePat),
+    cardVariantWindow: cardVariantPat?.lineWindow ?? undefined,
+    creditLimitWindow: creditLimitPat?.lineWindow ?? undefined,
+    availableCreditWindow: availableCreditPat?.lineWindow ?? undefined,
+    minPaymentWindow: minPaymentPat?.lineWindow ?? undefined,
+    totalOutstandingWindow: totalOutstandingPat?.lineWindow ?? undefined,
+    totalAmountDueWindow: totalAmountDuePat?.lineWindow ?? undefined,
     columnHeaders: columnHeaders.length ? columnHeaders : undefined,
   };
 
@@ -224,11 +251,11 @@ export async function POST(request: NextRequest) {
     periodTo: toPat?.confidence ?? (toPat ? 1.0 : 0),
     issuedDate: issuedPat?.confidence ?? (issuedPat ? 1.0 : 0),
     dueDate: duePat?.confidence ?? (duePat ? 1.0 : 0),
-    creditLimit: sf.creditLimitPattern ? 1.0 : 0,
-    availableCredit: sf.availableCreditPattern ? 1.0 : 0,
-    minPayment: sf.minPaymentPattern ? 1.0 : 0,
-    totalOutstanding: sf.totalOutstandingPattern ? 1.0 : 0,
-    totalAmountDue: sf.totalAmountDuePattern ? 1.0 : 0,
+    creditLimit: creditLimitPat?.confidence ?? (creditLimitPat ? 1.0 : 0),
+    availableCredit: availableCreditPat?.confidence ?? (availableCreditPat ? 1.0 : 0),
+    minPayment: minPaymentPat?.confidence ?? (minPaymentPat ? 1.0 : 0),
+    totalOutstanding: totalOutstandingPat?.confidence ?? (totalOutstandingPat ? 1.0 : 0),
+    totalAmountDue: totalAmountDuePat?.confidence ?? (totalAmountDuePat ? 1.0 : 0),
   };
 
   suggestedConfig._meta = { confidence, sampleCount: body.samples.length };
@@ -239,6 +266,11 @@ export async function POST(request: NextRequest) {
   if (toPat?.alternatives.length) alternativePatterns.periodTo = toPat.alternatives;
   if (issuedPat?.alternatives.length) alternativePatterns.issuedDatePattern = issuedPat.alternatives;
   if (duePat?.alternatives.length) alternativePatterns.dueDatePattern = duePat.alternatives;
+  if (creditLimitPat?.alternatives.length) alternativePatterns.creditLimitPattern = creditLimitPat.alternatives;
+  if (availableCreditPat?.alternatives.length) alternativePatterns.availableCreditPattern = availableCreditPat.alternatives;
+  if (minPaymentPat?.alternatives.length) alternativePatterns.minPaymentPattern = minPaymentPat.alternatives;
+  if (totalOutstandingPat?.alternatives.length) alternativePatterns.totalOutstandingPattern = totalOutstandingPat.alternatives;
+  if (totalAmountDuePat?.alternatives.length) alternativePatterns.totalAmountDuePattern = totalAmountDuePat.alternatives;
 
   const rawTxns = (Array.isArray(parsed.transactions) ? parsed.transactions : []).map((t: unknown) => {
     const tx = t as Record<string, unknown>;

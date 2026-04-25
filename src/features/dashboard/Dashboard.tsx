@@ -46,7 +46,7 @@ export default function Dashboard(props: Props) {
 
   useEffect(() => {
     if (!parsed && parsedList.length > 0 && !id) {
-      router.replace(`/view-parsed?id=${parsedList[parsedList.length - 1].id}`);
+      router.replace(`/view-parsed/${parsedList[parsedList.length - 1].id}`);
     }
     if (parsed) {
       setParsedData(parsed ?? null);
@@ -63,7 +63,7 @@ export default function Dashboard(props: Props) {
     },
   };
 
-  const handleSelectParsed = (id: string) => router.push(`/view-parsed?id=${id}`);
+  const handleSelectParsed = (id: string) => router.push(`/view-parsed/${id}`);
   const handleDelete = (id: string) => deleteParsed(id);
 
   const handleRemoveTransaction = (tx: Transaction) => {

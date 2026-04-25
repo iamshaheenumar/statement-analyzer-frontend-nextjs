@@ -1,11 +1,16 @@
 import Navbar from "@/components/Navbar";
 import ViewParsed from "@/features/viewParsed/ViewParsed";
 
-export default function ViewParsedPage() {
+type PageProps = {
+  params: Promise<{ id: string }>;
+};
+
+export default async function ViewParsedPage(props: PageProps) {
+  const { id } = await props.params;
   return (
     <div className="min-h-screen bg-base">
       <Navbar />
-      <ViewParsed />
+      <ViewParsed id={id} />
     </div>
   );
 }

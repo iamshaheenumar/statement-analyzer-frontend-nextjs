@@ -1,4 +1,4 @@
-import { ArrowLeft, Calendar, CreditCard, TrendingDown, TrendingUp, Wallet, Receipt } from "lucide-react";
+import { ArrowLeft, Calendar, CreditCard, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { DeleteButton } from "@/features/statements/DeleteStatementButton";
@@ -11,6 +11,7 @@ type Statement = {
   from_date: Date | null;
   to_date: Date | null;
   issued_date?: Date | null;
+  due_date?: Date | null;
   created_at: Date;
   currency: string;
   credit_limit?: number | null;
@@ -76,12 +77,14 @@ export default function SavedHeader({ statement }: { statement: Statement }) {
   const from = statement.from_date ? format(new Date(statement.from_date), "dd MMM yyyy") : null;
   const to = statement.to_date ? format(new Date(statement.to_date), "dd MMM yyyy") : null;
   const issued = statement.issued_date ? format(new Date(statement.issued_date), "dd MMM yyyy") : null;
+  const due = statement.due_date ? format(new Date(statement.due_date), "dd MMM yyyy") : null;
 
   const metaItems = [
     from && to && { label: "Period", value: `${from} – ${to}`, icon: Calendar },
     issued && { label: "Issued", value: issued, icon: Calendar },
+    due && { label: "Due", value: due, icon: Calendar, highlight: "warning" as const },
     statement.card_type && { label: "Card type", value: statement.card_type, icon: CreditCard },
-  ].filter(Boolean) as { label: string; value: string; icon: React.ElementType }[];
+  ].filter(Boolean) as { label: string; value: string; icon: React.ElementType; highlight?: "warning" }[];
 
   return (
     <div className="bg-surface border border-border rounded-xl p-5 space-y-4">
@@ -116,10 +119,10 @@ export default function SavedHeader({ statement }: { statement: Statement }) {
       {/* Meta row */}
       {metaItems.length > 0 && (
         <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-border pt-3">
-          {metaItems.map(({ label, value, icon: Icon }) => (
-            <div key={label} className="flex items-center gap-1.5 text-xs text-text-secondary">
-              <Icon className="w-3.5 h-3.5 text-text-muted" />
-              <span className="text-text-muted">{label}</span>
+          {metaItems.map(({ label, value, icon: Icon, highlight }) => (
+            <div key={label} className={`flex items-center gap-1.5 text-xs ${highlight === "warning" ? "text-warning" : "text-text-secondary"}`}>
+              <Icon className={`w-3.5 h-3.5 ${highlight === "warning" ? "text-warning" : "text-text-muted"}`} />
+              <span className={highlight === "warning" ? "text-warning/60" : "text-text-muted"}>{label}</span>
               <span className="font-medium">{value}</span>
             </div>
           ))}
@@ -129,7 +132,6 @@ export default function SavedHeader({ statement }: { statement: Statement }) {
       {/* Stats row */}
       {statement.summary && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          <StatCard label="Transactions" value={statement.summary.record_count} icon={Receipt} />
           {!isCredit && statement.summary.total_debit > 0 && (
             <StatCard label="Total Debit" value={fmtAmount(statement.summary.total_debit, cur) ?? "—"} icon={TrendingDown} variant="danger" />
           )}

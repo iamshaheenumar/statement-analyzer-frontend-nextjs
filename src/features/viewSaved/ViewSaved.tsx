@@ -28,6 +28,7 @@ async function getStatement(id: string, userId: string) {
     from_date: statement.from_date,
     to_date: statement.to_date,
     issued_date: statement.issued_date,
+    due_date: statement.due_date,
     currency: statement.currency,
     credit_limit: statement.credit_limit ? Number(statement.credit_limit) : null,
     available_credit: statement.available_credit ? Number(statement.available_credit) : null,

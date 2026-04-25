@@ -123,12 +123,12 @@ function computeDiff(existing: ParserConfigData, proposed: ParserConfigData): Fi
     { key: 'issuedDatePattern', label: 'Issued Date Regex', mono: true, ex: normalizePattern(existing.issuedDatePattern), pr: normalizePattern(proposed.issuedDatePattern) },
     { key: 'keywordsPage', label: 'Keyword Search Scope', ex: kpLabel(existing.keywordsPage), pr: kpLabel(proposed.keywordsPage) },
     { key: 'columnHeaders', label: 'Column Headers', ex: (existing.columnHeaders || []).join(', '), pr: (proposed.columnHeaders || []).join(', ') },
-    { key: 'cardVariantPattern', label: 'Card Variant Pattern', mono: true, ex: existing.cardVariantPattern || '', pr: proposed.cardVariantPattern || '' },
-    { key: 'creditLimitPattern', label: 'Credit Limit Pattern', mono: true, ex: existing.creditLimitPattern || '', pr: proposed.creditLimitPattern || '' },
-    { key: 'availableCreditPattern', label: 'Available Credit Pattern', mono: true, ex: existing.availableCreditPattern || '', pr: proposed.availableCreditPattern || '' },
-    { key: 'minPaymentPattern', label: 'Min Payment Pattern', mono: true, ex: existing.minPaymentPattern || '', pr: proposed.minPaymentPattern || '' },
-    { key: 'totalOutstandingPattern', label: 'Total Outstanding Pattern', mono: true, ex: existing.totalOutstandingPattern || '', pr: proposed.totalOutstandingPattern || '' },
-    { key: 'totalAmountDuePattern', label: 'Total Amount Due Pattern', mono: true, ex: existing.totalAmountDuePattern || '', pr: proposed.totalAmountDuePattern || '' },
+    { key: 'cardVariantPattern', label: 'Card Variant Pattern', mono: true, ex: normalizePattern(existing.cardVariantPattern), pr: normalizePattern(proposed.cardVariantPattern) },
+    { key: 'creditLimitPattern', label: 'Credit Limit Pattern', mono: true, ex: normalizePattern(existing.creditLimitPattern), pr: normalizePattern(proposed.creditLimitPattern) },
+    { key: 'availableCreditPattern', label: 'Available Credit Pattern', mono: true, ex: normalizePattern(existing.availableCreditPattern), pr: normalizePattern(proposed.availableCreditPattern) },
+    { key: 'minPaymentPattern', label: 'Min Payment Pattern', mono: true, ex: normalizePattern(existing.minPaymentPattern), pr: normalizePattern(proposed.minPaymentPattern) },
+    { key: 'totalOutstandingPattern', label: 'Total Outstanding Pattern', mono: true, ex: normalizePattern(existing.totalOutstandingPattern), pr: normalizePattern(proposed.totalOutstandingPattern) },
+    { key: 'totalAmountDuePattern', label: 'Total Amount Due Pattern', mono: true, ex: normalizePattern(existing.totalAmountDuePattern), pr: normalizePattern(proposed.totalAmountDuePattern) },
   ];
 
   return specs.map(f => {
@@ -636,21 +636,21 @@ export default function UpdateParserWizard({ parser, onClose }: { parser: Parser
 
             <section className="space-y-3 border-t border-border pt-4">
               <h4 className="text-xs font-semibold text-text-muted uppercase tracking-widest">Date Patterns</h4>
-              <PatternField label="Period From" value={editConfig.periodFrom ?? ''} onChange={v => updateEditConfig({ periodFrom: v || undefined })} />
-              <PatternField label="Period To" value={editConfig.periodTo ?? ''} onChange={v => updateEditConfig({ periodTo: v || undefined })} />
-              <PatternField label="Issued Date" value={editConfig.issuedDatePattern ?? ''} onChange={v => updateEditConfig({ issuedDatePattern: v || undefined })} />
-              <PatternField label="Due Date" value={editConfig.dueDatePattern ?? ''} onChange={v => updateEditConfig({ dueDatePattern: v || undefined })} />
+              <PatternField label="Period From" value={editConfig.periodFrom ?? ''} onChange={v => updateEditConfig({ periodFrom: v || undefined })} window={editConfig.periodFromWindow} onWindowChange={v => updateEditConfig({ periodFromWindow: v })} />
+              <PatternField label="Period To" value={editConfig.periodTo ?? ''} onChange={v => updateEditConfig({ periodTo: v || undefined })} window={editConfig.periodToWindow} onWindowChange={v => updateEditConfig({ periodToWindow: v })} />
+              <PatternField label="Issued Date" value={editConfig.issuedDatePattern ?? ''} onChange={v => updateEditConfig({ issuedDatePattern: v || undefined })} window={editConfig.issuedDateWindow} onWindowChange={v => updateEditConfig({ issuedDateWindow: v })} />
+              <PatternField label="Due Date" value={editConfig.dueDatePattern ?? ''} onChange={v => updateEditConfig({ dueDatePattern: v || undefined })} window={editConfig.dueDateWindow} onWindowChange={v => updateEditConfig({ dueDateWindow: v })} />
             </section>
 
             <section className="space-y-3 border-t border-border pt-4">
               <h4 className="text-xs font-semibold text-text-muted uppercase tracking-widest">Summary Field Patterns</h4>
               <p className="text-xs text-text-muted">Each regex must capture the value in group 1, e.g. <code className="font-mono bg-elevated px-1 rounded">Credit Limit[:\s]+([\d,]+)</code></p>
-              <PatternField label="Card Variant" value={editConfig.cardVariantPattern ?? ''} onChange={v => updateEditConfig({ cardVariantPattern: v || undefined })} />
-              <PatternField label="Credit Limit" value={editConfig.creditLimitPattern ?? ''} onChange={v => updateEditConfig({ creditLimitPattern: v || undefined })} />
-              <PatternField label="Available Credit" value={editConfig.availableCreditPattern ?? ''} onChange={v => updateEditConfig({ availableCreditPattern: v || undefined })} />
-              <PatternField label="Min Payment Due" value={editConfig.minPaymentPattern ?? ''} onChange={v => updateEditConfig({ minPaymentPattern: v || undefined })} />
-              <PatternField label="Total Outstanding" value={editConfig.totalOutstandingPattern ?? ''} onChange={v => updateEditConfig({ totalOutstandingPattern: v || undefined })} />
-              <PatternField label="Total Amount Due" value={editConfig.totalAmountDuePattern ?? ''} onChange={v => updateEditConfig({ totalAmountDuePattern: v || undefined })} />
+              <PatternField label="Card Variant" value={editConfig.cardVariantPattern ?? ''} onChange={v => updateEditConfig({ cardVariantPattern: (Array.isArray(v) ? v[0] : v) || undefined })} window={editConfig.cardVariantWindow} onWindowChange={v => updateEditConfig({ cardVariantWindow: v })} />
+              <PatternField label="Credit Limit" value={editConfig.creditLimitPattern ?? ''} onChange={v => updateEditConfig({ creditLimitPattern: (Array.isArray(v) ? v[0] : v) || undefined })} window={editConfig.creditLimitWindow} onWindowChange={v => updateEditConfig({ creditLimitWindow: v })} />
+              <PatternField label="Available Credit" value={editConfig.availableCreditPattern ?? ''} onChange={v => updateEditConfig({ availableCreditPattern: (Array.isArray(v) ? v[0] : v) || undefined })} window={editConfig.availableCreditWindow} onWindowChange={v => updateEditConfig({ availableCreditWindow: v })} />
+              <PatternField label="Min Payment Due" value={editConfig.minPaymentPattern ?? ''} onChange={v => updateEditConfig({ minPaymentPattern: (Array.isArray(v) ? v[0] : v) || undefined })} window={editConfig.minPaymentWindow} onWindowChange={v => updateEditConfig({ minPaymentWindow: v })} />
+              <PatternField label="Total Outstanding" value={editConfig.totalOutstandingPattern ?? ''} onChange={v => updateEditConfig({ totalOutstandingPattern: (Array.isArray(v) ? v[0] : v) || undefined })} window={editConfig.totalOutstandingWindow} onWindowChange={v => updateEditConfig({ totalOutstandingWindow: v })} />
+              <PatternField label="Total Amount Due" value={editConfig.totalAmountDuePattern ?? ''} onChange={v => updateEditConfig({ totalAmountDuePattern: (Array.isArray(v) ? v[0] : v) || undefined })} window={editConfig.totalAmountDueWindow} onWindowChange={v => updateEditConfig({ totalAmountDueWindow: v })} />
             </section>
 
             <section className="space-y-3 border-t border-border pt-4">

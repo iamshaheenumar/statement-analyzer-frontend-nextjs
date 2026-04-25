@@ -9,6 +9,8 @@ interface PatternFieldProps {
   confidence?: number;
   sampleLines?: string[];
   onChange: (value: string | string[]) => void;
+  window?: number;
+  onWindowChange?: (v: number | undefined) => void;
 }
 
 function ConfidenceBadge({ confidence }: { confidence: number }) {
@@ -24,7 +26,7 @@ function ConfidenceBadge({ confidence }: { confidence: number }) {
   );
 }
 
-export default function PatternField({ label, value, confidence, sampleLines, onChange }: PatternFieldProps) {
+export default function PatternField({ label, value, confidence, sampleLines, onChange, window, onWindowChange }: PatternFieldProps) {
   const [showSamples, setShowSamples] = useState(false);
 
   const primary = Array.isArray(value) ? (value[0] ?? '') : value;
@@ -110,6 +112,20 @@ export default function PatternField({ label, value, confidence, sampleLines, on
       >
         <Plus className="w-3 h-3" /> Add fallback
       </button>
+
+      {onWindowChange !== undefined && (
+        <div className="flex items-center gap-2 mt-1">
+          <span className="text-[11px] text-text-muted">Line window</span>
+          <input
+            type="number"
+            value={window ?? ''}
+            placeholder="0"
+            onChange={e => onWindowChange(e.target.value !== '' ? parseInt(e.target.value) : undefined)}
+            className="w-16 px-2 py-1 text-xs font-mono text-text-primary border border-border rounded-lg bg-base focus:outline-none focus:ring-2 focus:ring-accent"
+          />
+          <span className="text-[11px] text-text-muted italic">+ forward / − backward</span>
+        </div>
+      )}
 
       {showSamples && sampleLines && sampleLines.length > 0 && (
         <div className="bg-base border border-border rounded-lg p-2.5 space-y-1">
