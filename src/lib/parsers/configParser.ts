@@ -1,4 +1,4 @@
-import type { PageContent, ParseResult } from '../pdf/types';
+import type { PageContent, ParseResult, Transaction } from '../pdf/types';
 import { normalizeDate, normalizeTransactions, summarizeTransactions, detectCurrency } from '../pdf/utils';
 
 export type ParserConfigData = {
@@ -105,7 +105,7 @@ function firstMatch(line: string, regexes: RegExp[]): RegExpMatchArray | null {
 }
 
 export function parseWithConfig(pages: PageContent[], config: ParserConfigData): ParseResult {
-  const transactions = [];
+  const transactions: Transaction[] = [];
   const rawRows: string[][] = [];
 
   let statementFrom: string | null = null;
@@ -157,7 +157,7 @@ export function parseWithConfig(pages: PageContent[], config: ParserConfigData):
     const isCredit =
       (config.creditFlag && flagStr.trim().toUpperCase().includes(config.creditFlag.toUpperCase())) ||
       (config.creditKeywords || []).some(k => desc.toLowerCase().includes(k.toLowerCase()));
-    transactions.push({ transaction_date: date, description: desc, debit: isCredit ? 0 : amount, credit: isCredit ? amount : 0, amount });
+    transactions.push({ transaction_date: date, description: desc, debit: isCredit ? 0 : amount, credit: isCredit ? amount : 0, amount, bank: config.bankName, card_type: config.cardType, currency: fallbackCurrency });
     rawRows.push(Array.from(m).slice(1).map(v => v ?? ''));
   };
 
