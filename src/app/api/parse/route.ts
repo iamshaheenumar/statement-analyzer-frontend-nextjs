@@ -8,6 +8,7 @@ export const runtime = 'nodejs';
 
 interface ParseRequestBody {
   pages: { page: number; lines: string[] }[];
+  bankHint?: { configId?: string; bank?: string; cardType?: string };
 }
 
 function buildPageText(cfg: ParserConfigData, pages: PageContent[]): string {
@@ -42,6 +43,67 @@ function matchesColumnHeaders(cfg: ParserConfigData, text: string): boolean {
   return cfg.columnHeaders.every(h => lower.includes(h.toLowerCase().trim()));
 }
 
+function findBestConfig(configs: any[], pages: PageContent[], allText: string): ParserConfigData | null {
+  // Tier 1: cardVariant + keywords + cardType + columnHeaders (most specific)
+  let matched = configs.find(c => {
+    const cfg = c.config as ParserConfigData;
+    if (!cfg.cardVariant) return false;
+    const pageText = buildPageText(cfg, pages);
+    return matchesKeywords(cfg, pageText) && matchesCardType(cfg, allText)
+      && matchesCardVariant(cfg, allText) && matchesColumnHeaders(cfg, allText);
+  });
+
+  // Tier 2: cardVariant + keywords + cardType
+  if (!matched) {
+    matched = configs.find(c => {
+      const cfg = c.config as ParserConfigData;
+      if (!cfg.cardVariant) return false;
+      const pageText = buildPageText(cfg, pages);
+      return matchesKeywords(cfg, pageText) && matchesCardType(cfg, allText)
+        && matchesCardVariant(cfg, allText);
+    });
+  }
+
+  // Tier 3: keywords + cardType + columnHeaders
+  if (!matched) {
+    matched = configs.find(c => {
+      const cfg = c.config as ParserConfigData;
+      const pageText = buildPageText(cfg, pages);
+      return matchesKeywords(cfg, pageText) && matchesCardType(cfg, allText)
+        && matchesColumnHeaders(cfg, allText);
+    });
+  }
+
+  // Tier 4: keywords + cardType
+  if (!matched) {
+    matched = configs.find(c => {
+      const cfg = c.config as ParserConfigData;
+      const pageText = buildPageText(cfg, pages);
+      return matchesKeywords(cfg, pageText) && matchesCardType(cfg, allText);
+    });
+  }
+
+  // Tier 5: keywords + columnHeaders
+  if (!matched) {
+    matched = configs.find(c => {
+      const cfg = c.config as ParserConfigData;
+      const pageText = buildPageText(cfg, pages);
+      return matchesKeywords(cfg, pageText) && matchesColumnHeaders(cfg, allText);
+    });
+  }
+
+  // Tier 6: keywords only (pure fallback)
+  if (!matched) {
+    matched = configs.find(c => {
+      const cfg = c.config as ParserConfigData;
+      const pageText = buildPageText(cfg, pages);
+      return matchesKeywords(cfg, pageText);
+    });
+  }
+
+  return matched ? (matched.config as ParserConfigData) : null;
+}
+
 export async function POST(request: NextRequest) {
   let body: ParseRequestBody;
   try {
@@ -61,79 +123,56 @@ export async function POST(request: NextRequest) {
   }));
 
   const allText = pages.flatMap(p => p.lines).join(' ');
+  const { bankHint } = body;
 
   let dbConfig: ParserConfigData | null = null;
   try {
-    const configs = await prisma.parserConfig.findMany({
-      where: { active: true, status: 'approved' },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    // Tier 1: cardVariant + keywords + cardType + columnHeaders (most specific)
-    let matched = configs.find(c => {
-      const cfg = c.config as ParserConfigData;
-      if (!cfg.cardVariant) return false;
-      const pageText = buildPageText(cfg, pages);
-      return matchesKeywords(cfg, pageText) && matchesCardType(cfg, allText)
-        && matchesCardVariant(cfg, allText) && matchesColumnHeaders(cfg, allText);
-    });
-
-    // Tier 2: cardVariant + keywords + cardType
-    if (!matched) {
-      matched = configs.find(c => {
-        const cfg = c.config as ParserConfigData;
-        if (!cfg.cardVariant) return false;
-        const pageText = buildPageText(cfg, pages);
-        return matchesKeywords(cfg, pageText) && matchesCardType(cfg, allText)
-          && matchesCardVariant(cfg, allText);
+    if (bankHint?.configId) {
+      // Direct lookup — user selected a specific parser
+      const record = await prisma.parserConfig.findFirst({
+        where: { id: bankHint.configId, active: true, status: 'approved' },
       });
+      if (record) dbConfig = record.config as ParserConfigData;
     }
 
-    // Tier 3: keywords + cardType + columnHeaders
-    if (!matched) {
-      matched = configs.find(c => {
-        const cfg = c.config as ParserConfigData;
-        const pageText = buildPageText(cfg, pages);
-        return matchesKeywords(cfg, pageText) && matchesCardType(cfg, allText)
-          && matchesColumnHeaders(cfg, allText);
+    if (!dbConfig) {
+      // Full config list, optionally pre-filtered by hint
+      const allConfigs = await prisma.parserConfig.findMany({
+        where: { active: true, status: 'approved' },
+        orderBy: { createdAt: 'desc' },
       });
-    }
 
-    // Tier 4: keywords + cardType
-    if (!matched) {
-      matched = configs.find(c => {
-        const cfg = c.config as ParserConfigData;
-        const pageText = buildPageText(cfg, pages);
-        return matchesKeywords(cfg, pageText) && matchesCardType(cfg, allText);
-      });
-    }
+      let candidates = allConfigs;
 
-    // Tier 5: keywords + columnHeaders
-    if (!matched) {
-      matched = configs.find(c => {
-        const cfg = c.config as ParserConfigData;
-        const pageText = buildPageText(cfg, pages);
-        return matchesKeywords(cfg, pageText) && matchesColumnHeaders(cfg, allText);
-      });
-    }
+      if (bankHint?.bank) {
+        const bankLower = bankHint.bank.toLowerCase();
+        const filtered = allConfigs.filter(c => {
+          const cfg = c.config as ParserConfigData;
+          const name = (cfg.bankName || c.bank || '').toLowerCase();
+          return name === bankLower;
+        });
+        if (filtered.length > 0) {
+          candidates = bankHint?.cardType
+            ? filtered.filter(c => (c.config as ParserConfigData).cardType === bankHint.cardType)
+            : filtered;
+          // If the hint filter left nothing, fall back to full list
+          if (candidates.length === 0) candidates = filtered;
+        }
+      }
 
-    // Tier 6: keywords only (pure fallback)
-    if (!matched) {
-      matched = configs.find(c => {
-        const cfg = c.config as ParserConfigData;
-        const pageText = buildPageText(cfg, pages);
-        return matchesKeywords(cfg, pageText);
-      });
-    }
+      dbConfig = findBestConfig(candidates, pages, allText);
 
-    if (matched) dbConfig = matched.config as ParserConfigData;
+      // If hint-filtered candidates yielded no match, retry with full list
+      if (!dbConfig && bankHint?.bank && candidates !== allConfigs) {
+        dbConfig = findBestConfig(allConfigs, pages, allText);
+      }
+    }
   } catch {
     // DB unavailable — fall through to generic
   }
 
   try {
     const result = parseStatement(pages, dbConfig);
-    // Always include rawPageContent so users can reparse with AI from ViewParsed
     return NextResponse.json({ ...result, rawPageContent: pages });
   } catch (err) {
     console.error('[POST /api/parse]', err);

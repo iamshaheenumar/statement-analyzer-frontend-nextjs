@@ -11,6 +11,8 @@ export type ParserConfigData = {
   cardVariant?: string;
   // Supports ranked fallback arrays — parser tries each in order until one matches
   rowPattern: string | string[];
+  // When set, lines are accumulated into a block (joined with space) starting from each match before rowPattern is applied
+  transactionStartPattern?: string;
   groups: {
     date: number;
     description: number;
@@ -144,6 +146,34 @@ export function parseWithConfig(pages: PageContent[], config: ParserConfigData):
     };
   }
 
+  const emitMatch = (m: RegExpMatchArray) => {
+    const g = config.groups;
+    const rawDate = m[g.date] || '';
+    const desc = (m[g.description] || '').trim();
+    const amtStr = (m[g.amount] || '').replace(/,/g, '');
+    const flagStr = g.creditFlag !== undefined ? (m[g.creditFlag] || '') : '';
+    const date = normalizeDate(rawDate, config.dateFormat) || rawDate;
+    const amount = parseFloat(amtStr) || 0;
+    const isCredit =
+      (config.creditFlag && flagStr.trim().toUpperCase().includes(config.creditFlag.toUpperCase())) ||
+      (config.creditKeywords || []).some(k => desc.toLowerCase().includes(k.toLowerCase()));
+    transactions.push({ transaction_date: date, description: desc, debit: isCredit ? 0 : amount, credit: isCredit ? amount : 0, amount });
+    rawRows.push(Array.from(m).slice(1).map(v => v ?? ''));
+  };
+
+  let startRe: RegExp | null = null;
+  if (config.transactionStartPattern) {
+    try { startRe = new RegExp(config.transactionStartPattern); } catch { /* invalid regex — fall back to single-line mode */ }
+  }
+  let mlBuffer: string[] = [];
+  let mlEmitted = false;
+
+  const tryEmitBuffer = () => {
+    if (mlEmitted || mlBuffer.length === 0) return;
+    const m = firstMatch(mlBuffer.join(' '), rowRegexes);
+    if (m) { emitMatch(m); mlEmitted = true; }
+  };
+
   for (const { lines } of pages) {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
@@ -227,26 +257,23 @@ export function parseWithConfig(pages: PageContent[], config: ParserConfigData):
         }
       }
 
-      const m = firstMatch(line, rowRegexes);
-      if (!m) continue;
-
-      const g = config.groups;
-      const rawDate = m[g.date] || '';
-      const desc = (m[g.description] || '').trim();
-      const amtStr = (m[g.amount] || '').replace(/,/g, '');
-      const flagStr = g.creditFlag !== undefined ? (m[g.creditFlag] || '') : '';
-
-      const date = normalizeDate(rawDate, config.dateFormat) || rawDate;
-      const amount = parseFloat(amtStr) || 0;
-
-      const isCredit =
-        (config.creditFlag && flagStr.trim().toUpperCase().includes(config.creditFlag.toUpperCase())) ||
-        (config.creditKeywords || []).some(k => desc.toLowerCase().includes(k.toLowerCase()));
-
-      transactions.push({ transaction_date: date, description: desc, debit: isCredit ? 0 : amount, credit: isCredit ? amount : 0, amount });
-      rawRows.push(Array.from(m).slice(1).map(v => v ?? ''));
+      if (startRe) {
+        if (startRe.test(line)) {
+          tryEmitBuffer();
+          mlBuffer = [line];
+          mlEmitted = false;
+        } else {
+          mlBuffer.push(line);
+        }
+        tryEmitBuffer();
+      } else {
+        const m = firstMatch(line, rowRegexes);
+        if (m) emitMatch(m);
+      }
     }
   }
+
+  if (startRe) tryEmitBuffer();
 
   const allText = pages.map(p => p.text).join('\n');
   const currency = config.currency || detectCurrency(allText);

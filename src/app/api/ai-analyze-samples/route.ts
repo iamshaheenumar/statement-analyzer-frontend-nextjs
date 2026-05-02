@@ -56,6 +56,7 @@ All other fields follow the standard format below.
 
   "transactionStructure": {
     "rowPattern": { "primary": "JS regex matching ONE transaction line with capture groups", "alternatives": ["alt if layout varies across samples"], "confidence": 1.0 },
+    "transactionStartPattern": "JS regex anchored at ^ matching the FIRST line of a multi-line transaction (e.g. a date prefix like ^\\\\d{2}[A-Z]{3}\\\\d{2}\\\\s+). When set, lines are accumulated into a block until the next match, then rowPattern is applied to the joined block. Set to null for single-line statements.",
     "groups": { "date": 1, "description": 2, "amount": 3, "creditFlag": 4 },
     "dateFormat": "DD/MM/YYYY or DD-MMM-YYYY etc.",
     "sampleMatchedLines": ["up to 3 actual transaction lines that the primary rowPattern matches"],
@@ -221,6 +222,7 @@ export async function POST(request: NextRequest) {
     cardVariant: (parsed.cardVariant as string) || undefined,
     keywords: (id.keywords as string[]) || [],
     rowPattern: toPatternField(rowPat) || '',
+    transactionStartPattern: typeof ts.transactionStartPattern === 'string' && ts.transactionStartPattern ? ts.transactionStartPattern : undefined,
     groups,
     dateFormat: (ts.dateFormat as string) || '',
     creditKeywords: Array.isArray(cr.creditKeywords) && (cr.creditKeywords as string[]).length ? (cr.creditKeywords as string[]) : undefined,
@@ -244,18 +246,26 @@ export async function POST(request: NextRequest) {
     columnHeaders: columnHeaders.length ? columnHeaders : undefined,
   };
 
-  const confidence = {
-    overall: typeof parsed.overallConfidence === 'number' ? parsed.overallConfidence : 1.0,
+  const baseConfidence: Record<string, number> = {
     rowPattern: rowPat?.confidence ?? 1.0,
     periodFrom: fromPat?.confidence ?? (fromPat ? 1.0 : 0),
     periodTo: toPat?.confidence ?? (toPat ? 1.0 : 0),
     issuedDate: issuedPat?.confidence ?? (issuedPat ? 1.0 : 0),
-    dueDate: duePat?.confidence ?? (duePat ? 1.0 : 0),
-    creditLimit: creditLimitPat?.confidence ?? (creditLimitPat ? 1.0 : 0),
-    availableCredit: availableCreditPat?.confidence ?? (availableCreditPat ? 1.0 : 0),
-    minPayment: minPaymentPat?.confidence ?? (minPaymentPat ? 1.0 : 0),
-    totalOutstanding: totalOutstandingPat?.confidence ?? (totalOutstandingPat ? 1.0 : 0),
-    totalAmountDue: totalAmountDuePat?.confidence ?? (totalAmountDuePat ? 1.0 : 0),
+    ...(cardType === 'credit' ? {
+      dueDate: duePat?.confidence ?? (duePat ? 1.0 : 0),
+      creditLimit: creditLimitPat?.confidence ?? (creditLimitPat ? 1.0 : 0),
+      availableCredit: availableCreditPat?.confidence ?? (availableCreditPat ? 1.0 : 0),
+      minPayment: minPaymentPat?.confidence ?? (minPaymentPat ? 1.0 : 0),
+      totalOutstanding: totalOutstandingPat?.confidence ?? (totalOutstandingPat ? 1.0 : 0),
+      totalAmountDue: totalAmountDuePat?.confidence ?? (totalAmountDuePat ? 1.0 : 0),
+    } : {}),
+  };
+  const fieldVals = Object.values(baseConfidence);
+  const confidence = {
+    ...baseConfidence,
+    overall: fieldVals.length > 0
+      ? fieldVals.reduce((a, b) => a + b, 0) / fieldVals.length
+      : 1.0,
   };
 
   suggestedConfig._meta = { confidence, sampleCount: body.samples.length };

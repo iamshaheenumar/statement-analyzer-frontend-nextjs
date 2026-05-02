@@ -20,7 +20,8 @@
       "Bash(node -e \"console.log\\(require\\('./node_modules/prisma/package.json'\\).version\\)\")",
       "Bash(node -e ' *)",
       "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(list\\(d.get\\('dependencies',{}\\).keys\\(\\)\\)\\)\")",
-      "Bash(git *)"
+      "Bash(git *)",
+      "Bash(xargs grep *)"
     ]
   }
 }

@@ -542,6 +542,17 @@ export default function MultiSampleWizard({
                   className="w-full px-3 py-2 text-xs font-mono text-text-primary border border-border rounded-lg bg-base focus:outline-none focus:ring-2 focus:ring-accent"
                 />
               </div>
+              <div>
+                <label className="block text-xs font-semibold text-text-primary mb-1">
+                  Transaction Start Pattern <span className="text-text-muted font-normal">(optional — anchors first line of multi-line transactions)</span>
+                </label>
+                <input
+                  value={editableConfig.transactionStartPattern || ''}
+                  onChange={e => updateConfig({ transactionStartPattern: e.target.value || undefined })}
+                  placeholder="^\d{2}[A-Z]{3}\d{2}\s+"
+                  className="w-full px-3 py-2 text-xs font-mono text-text-primary border border-border rounded-lg bg-base focus:outline-none focus:ring-2 focus:ring-accent"
+                />
+              </div>
             </section>
 
             {/* Dates */}
@@ -574,15 +585,17 @@ export default function MultiSampleWizard({
                 window={editableConfig.issuedDateWindow}
                 onWindowChange={v => updateConfig({ issuedDateWindow: v })}
               />
-              <PatternField
-                label="Due Date Pattern"
-                value={editableConfig.dueDatePattern ?? ''}
-                confidence={analysisResult.confidence.dueDate}
-                sampleLines={analysisResult.statementPeriod.sampleLines}
-                onChange={v => updateConfig({ dueDatePattern: v || undefined })}
-                window={editableConfig.dueDateWindow}
-                onWindowChange={v => updateConfig({ dueDateWindow: v })}
-              />
+              {editableConfig.cardType === 'credit' && (
+                <PatternField
+                  label="Due Date Pattern"
+                  value={editableConfig.dueDatePattern ?? ''}
+                  confidence={analysisResult.confidence.dueDate}
+                  sampleLines={analysisResult.statementPeriod.sampleLines}
+                  onChange={v => updateConfig({ dueDatePattern: v || undefined })}
+                  window={editableConfig.dueDateWindow}
+                  onWindowChange={v => updateConfig({ dueDateWindow: v })}
+                />
+              )}
             </section>
 
             {/* Credit/Debit rules */}

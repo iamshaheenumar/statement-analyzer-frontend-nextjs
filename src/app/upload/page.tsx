@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { FormValues } from "@/features/upload/types";
-import type { SavedCard } from "@/features/upload/types";
+import type { BankOption, SavedCard } from "@/features/upload/types";
 import UploadForm from "@/features/upload/UploadForm";
 import SaveCardPrompt from "@/features/upload/SaveCardPrompt";
 import SaveParserPrompt from "@/features/upload/SaveParserPrompt";
@@ -13,6 +13,7 @@ import { useParsedStorage } from "@/features/dashboard/useParsedStorage";
 import Navbar from "@/components/Navbar";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { getCardsAction } from "@/app/actions/card";
+import { getAvailableBanksAction } from "@/app/actions/banks";
 import { Sparkles, Loader2 } from "lucide-react";
 import type { ParserConfigData } from "@/lib/parsers/configParser";
 import { motion } from "framer-motion";
@@ -48,6 +49,7 @@ export default function UploadPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [stage, setStage] = useState<Stage>({ type: "idle" });
   const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
+  const [bankOptions, setBankOptions] = useState<BankOption[]>([]);
 
   const refreshCards = async () => {
     const supabase = createSupabaseBrowserClient();
@@ -61,6 +63,7 @@ export default function UploadPage() {
 
   useEffect(() => {
     refreshCards();
+    getAvailableBanksAction().then(setBankOptions).catch(() => {});
   }, []);
 
   async function handleParseSuccess(
@@ -114,6 +117,20 @@ export default function UploadPage() {
     router.push(`/view-parsed/${parsedId}`);
   }
 
+  const runAiParse = async (pages: any[], password: string) => {
+    setStage({ type: "ai_parsing" });
+    setError(null);
+    try {
+      const res = await axios.post("/api/ai-parse", { pages });
+      const result = res.data;
+      const saved = await addParsed(result);
+      await handleParseSuccess(result, saved.id, password);
+    } catch (err: any) {
+      setError(err.response?.data?.error || "AI parsing failed. Please try again.");
+      setStage({ type: "idle" });
+    }
+  };
+
   const onSubmit = async (data: FormValues) => {
     setError(null);
     setIsLoading(true);
@@ -124,7 +141,26 @@ export default function UploadPage() {
         data.file[0],
         data.password || undefined,
       );
-      const res = await axios.post("/api/parse", { pages });
+
+      // User explicitly chose AI — skip rule-based parse entirely
+      if (data.bankSelection.type === "ai") {
+        setIsLoading(false);
+        await runAiParse(pages, data.password || "");
+        return;
+      }
+
+      // Build optional bank hint for the parser
+      let bankHint: { configId?: string; bank?: string; cardType?: string } | undefined;
+      if (data.bankSelection.type === "bank") {
+        bankHint = { configId: data.bankSelection.configId };
+      } else if (data.bankSelection.type === "saved_card") {
+        bankHint = {
+          bank: data.bankSelection.card.bank,
+          cardType: data.bankSelection.card.cardType,
+        };
+      }
+
+      const res = await axios.post("/api/parse", { pages, bankHint });
       const result = res.data;
 
       if (result.parsedBy === "generic" || result.bank === "unknown") {
@@ -152,20 +188,7 @@ export default function UploadPage() {
   const handleAiParse = async () => {
     if (stage.type !== "unknown_bank") return;
     const { pages, password } = stage;
-    setStage({ type: "ai_parsing" });
-    setError(null);
-
-    try {
-      const res = await axios.post("/api/ai-parse", { pages });
-      const result = res.data;
-      const saved = await addParsed(result);
-      await handleParseSuccess(result, saved.id, password);
-    } catch (err: any) {
-      setError(
-        err.response?.data?.error || "AI parsing failed. Please try again.",
-      );
-      setStage({ type: "unknown_bank", pages, password });
-    }
+    await runAiParse(pages, password);
   };
 
   const handleSaveParserDone = async () => {
@@ -249,6 +272,7 @@ export default function UploadPage() {
             isLoading={isLoading}
             error={error}
             savedCards={savedCards}
+            bankOptions={bankOptions}
           />
         )}
 

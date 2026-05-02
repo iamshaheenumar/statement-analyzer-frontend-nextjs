@@ -21,11 +21,25 @@ export interface PdfPage {
   lines: string[];
 }
 
-/**
- * Extract layout-preserving text lines from every page of a PDF.
- * Text items are grouped by their Y coordinate (same approach as pdfplumber).
- * Runs in the browser only — pdfjs-dist requires a DOM environment.
- */
+// Horizontal gap (PDF units) that separates distinct columns.
+const COLUMN_GAP = 40;
+// Max vertical gap for a row to be treated as a wrapped continuation line.
+const CONTINUATION_Y_GAP = 30;
+
+// Returns the right edge of the leftmost column (the date/anchor column).
+function anchorBoundary(xValues: number[]): number {
+  if (xValues.length === 0) return 0;
+  const sorted = [...xValues].sort((a, b) => a - b);
+  let boundary = sorted[0];
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i] - sorted[i - 1] > COLUMN_GAP) break;
+    boundary = sorted[i];
+  }
+  return boundary + 10; // small tolerance
+}
+
+// Rows without an anchor-column item that sit within CONTINUATION_Y_GAP of
+// the previous row are merged into it (handles wrapped description lines).
 export async function extractPdfPages(
   file: File,
   password?: string
@@ -39,20 +53,49 @@ export async function extractPdfPages(
     const page = await pdf.getPage(pageNum);
     const content = await page.getTextContent();
 
-    const rows: Record<number, string[]> = {};
+    const items: { x: number; y: number; text: string }[] = [];
     for (const item of content.items as any[]) {
-      const str: string = item.str ?? "";
-      if (!str.trim()) continue;
-      const y = Math.round(item.transform[5]);
-      if (!rows[y]) rows[y] = [];
-      rows[y].push(str);
+      const text: string = item.str ?? "";
+      if (!text.trim()) continue;
+      items.push({
+        x: Math.round(item.transform[4]),
+        y: Math.round(item.transform[5]),
+        text,
+      });
     }
 
-    const lines = Object.keys(rows)
-      .map(Number)
-      .sort((a, b) => b - a)
-      .map((y) => rows[y].join(" ").trim())
-      .filter(Boolean);
+    const rowMap = new Map<number, { x: number; text: string }[]>();
+    for (const item of items) {
+      if (!rowMap.has(item.y)) rowMap.set(item.y, []);
+      rowMap.get(item.y)!.push({ x: item.x, text: item.text });
+    }
+
+    const anchor = anchorBoundary(items.map((i) => i.x));
+
+    const sortedYs = [...rowMap.keys()].sort((a, b) => b - a);
+
+    const lines: string[] = [];
+    let lastY: number | null = null;
+
+    for (const y of sortedYs) {
+      const cells = rowMap.get(y)!.sort((a, b) => a.x - b.x);
+      const text = cells.map((c) => c.text).join(" ").trim();
+      if (!text) continue;
+
+      const hasAnchor = cells.some((c) => c.x <= anchor);
+      const isContinuation =
+        !hasAnchor &&
+        lines.length > 0 &&
+        lastY !== null &&
+        lastY - y <= CONTINUATION_Y_GAP;
+
+      if (isContinuation) {
+        lines[lines.length - 1] += " " + text;
+      } else {
+        lines.push(text);
+      }
+      lastY = y;
+    }
 
     pages.push({ page: pageNum, lines });
   }

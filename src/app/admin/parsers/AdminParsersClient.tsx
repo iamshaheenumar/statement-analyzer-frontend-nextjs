@@ -41,6 +41,23 @@ interface Props {
   parsers: ParserRow[];
 }
 
+// ── Confidence helpers ─────────────────────────────────────────────────────────
+
+const CREDIT_ONLY_CONF_KEYS = new Set([
+  'dueDate', 'creditLimit', 'availableCredit',
+  'minPayment', 'totalOutstanding', 'totalAmountDue',
+]);
+
+function computeOverallConfidence(
+  confidence: Record<string, number>,
+  cardType: string,
+): number | null {
+  const vals = Object.entries(confidence)
+    .filter(([k]) => k !== 'overall' && (cardType === 'credit' || !CREDIT_ONLY_CONF_KEYS.has(k)))
+    .map(([, v]) => v);
+  return vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+}
+
 // ── Shared display helpers ──────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: string }) {
@@ -231,7 +248,7 @@ function ParserConfigDetail({ parser }: { parser: ParserRow }) {
             { label: "Period From", text: periodFrom, win: cfg.periodFromWindow },
             { label: "Period To", text: periodTo, win: cfg.periodToWindow },
             { label: "Issued Date", text: issuedDate, win: cfg.issuedDateWindow },
-            { label: "Due Date", text: dueDate, win: cfg.dueDateWindow },
+            ...(cfg.cardType === "credit" ? [{ label: "Due Date", text: dueDate, win: cfg.dueDateWindow }] : []),
           ].map(({ label, text, win }) => (
             <div key={label} className="grid grid-cols-[130px_1fr] gap-3 items-start">
               <div>
@@ -280,7 +297,7 @@ function ParserConfigDetail({ parser }: { parser: ParserRow }) {
           <SectionLabel>Confidence Scores</SectionLabel>
           <div className="space-y-2">
             {Object.entries(confidence)
-              .filter(([k]) => k !== "overall")
+              .filter(([k]) => k !== "overall" && (cfg.cardType === "credit" || !CREDIT_ONLY_CONF_KEYS.has(k)))
               .map(([key, val]) => {
                 const pct = Math.round(val * 100);
                 const barColor = pct >= 80 ? "bg-success" : pct >= 50 ? "bg-warning" : "bg-danger";
@@ -300,20 +317,25 @@ function ParserConfigDetail({ parser }: { parser: ParserRow }) {
                 );
               })}
           </div>
-          {confidence.overall !== undefined && (
-            <div className="pt-2 mt-2 border-t border-border/50 flex items-center gap-3">
-              <span className="text-[11px] font-semibold text-text-secondary w-36 shrink-0">Overall</span>
-              <div className="flex-1 bg-elevated rounded-full h-1.5">
-                <div
-                  className={`h-1.5 rounded-full ${confidence.overall >= 0.8 ? "bg-success" : confidence.overall >= 0.5 ? "bg-warning" : "bg-danger"}`}
-                  style={{ width: `${Math.round(confidence.overall * 100)}%` }}
-                />
+          {(() => {
+            const computedOverall = computeOverallConfidence(confidence, cfg.cardType);
+            if (computedOverall === null) return null;
+            const pct = Math.round(computedOverall * 100);
+            return (
+              <div className="pt-2 mt-2 border-t border-border/50 flex items-center gap-3">
+                <span className="text-[11px] font-semibold text-text-secondary w-36 shrink-0">Overall</span>
+                <div className="flex-1 bg-elevated rounded-full h-1.5">
+                  <div
+                    className={`h-1.5 rounded-full ${computedOverall >= 0.8 ? "bg-success" : computedOverall >= 0.5 ? "bg-warning" : "bg-danger"}`}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                <span className={`text-[11px] font-bold w-8 text-right tabular-nums ${computedOverall >= 0.8 ? "text-success" : computedOverall >= 0.5 ? "text-warning" : "text-danger"}`}>
+                  {pct}%
+                </span>
               </div>
-              <span className={`text-[11px] font-bold w-8 text-right tabular-nums ${confidence.overall >= 0.8 ? "text-success" : confidence.overall >= 0.5 ? "text-warning" : "text-danger"}`}>
-                {Math.round(confidence.overall * 100)}%
-              </span>
-            </div>
-          )}
+            );
+          })()}
         </div>
       )}
 
@@ -474,12 +496,12 @@ function ActiveParserCard({
   const [toggling, startToggle] = useTransition();
   const [deleting, startDelete] = useTransition();
 
-  const meta = parser.config._meta as { confidence?: Record<string, number> } | undefined;
-  const confidenceScores = meta?.confidence ? Object.values(meta.confidence) : [];
-  const avgConfidence =
-    confidenceScores.length > 0
-      ? confidenceScores.reduce((a, b) => a + b, 0) / confidenceScores.length
-      : null;
+  const cfg = parser.config as ParserConfigData;
+  const meta = cfg._meta;
+  const confidence = meta?.confidence ?? {};
+  const avgConfidence = Object.keys(confidence).length > 0
+    ? computeOverallConfidence(confidence, cfg.cardType)
+    : null;
 
   return (
     <div className="border border-border rounded-2xl bg-surface shadow-surface overflow-hidden">
