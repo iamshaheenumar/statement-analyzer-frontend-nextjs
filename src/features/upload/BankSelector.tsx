@@ -2,33 +2,21 @@
 
 import React, { useRef, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import {
-  Zap,
-  CreditCard,
-  Sparkles,
-  ChevronDown,
-  Check,
-  Building2,
-} from "lucide-react";
-import type { BankOption, BankSelection, SavedCard } from "./types";
+import { CreditCard, ChevronDown, Check } from "lucide-react";
+import type { BankSelection, SavedCard } from "./types";
 
 type Props = {
   value: BankSelection;
   onChange: (v: BankSelection) => void;
   savedCards: SavedCard[];
-  bankOptions: BankOption[];
 };
 
 function selectionLabel(value: BankSelection): string {
-  if (value.type === "auto") return "Auto Detect";
-  if (value.type === "ai") return "Parse with AI";
   if (value.type === "saved_card") {
     const c = value.card;
     return c.nickname || `${c.bank}${c.cardVariant ? ` ${c.cardVariant}` : ""} ${c.cardType === "credit" ? "Credit" : "Debit"}`;
   }
-  return value.cardVariant
-    ? `${value.bank} · ${value.cardVariant}`
-    : `${value.bank} · ${value.cardType === "credit" ? "Credit" : "Debit"}`;
+  return "None";
 }
 
 function CardTypeBadge({ type }: { type: "credit" | "debit" }) {
@@ -96,25 +84,11 @@ function OptionRow({
   );
 }
 
-export default function BankSelector({ value, onChange, savedCards, bankOptions }: Props) {
+export default function BankSelector({ value, onChange, savedCards }: Props) {
   const [open, setOpen] = useState(false);
   const [panelStyle, setPanelStyle] = useState<React.CSSProperties>({});
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-
-  const openDropdown = () => {
-    if (triggerRef.current) {
-      const rect = triggerRef.current.getBoundingClientRect();
-      setPanelStyle({
-        position: "fixed",
-        top: rect.bottom + 6,
-        left: rect.left,
-        width: rect.width,
-        zIndex: 9999,
-      });
-    }
-    setOpen(true);
-  };
 
   useEffect(() => {
     if (!open) return;
@@ -135,7 +109,38 @@ export default function BankSelector({ value, onChange, savedCards, bankOptions 
     };
   }, [open]);
 
-  const isAi = value.type === "ai";
+  const openDropdown = () => {
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setPanelStyle({
+        position: "fixed",
+        top: rect.bottom + 6,
+        left: rect.left,
+        width: rect.width,
+        zIndex: 9999,
+      });
+    }
+    setOpen(true);
+  };
+
+  if (savedCards.length === 0) {
+    return (
+      <div>
+        <label className="block text-xs font-medium text-text-secondary mb-2">
+          Saved Card{" "}
+          <span className="text-text-muted font-normal">— optional, auto-fills password</span>
+        </label>
+        <button
+          type="button"
+          disabled
+          className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-border bg-base text-sm text-text-muted cursor-not-allowed"
+        >
+          <CreditCard className="w-4 h-4 flex-shrink-0" />
+          <span className="flex-1 text-left">No saved cards</span>
+        </button>
+      </div>
+    );
+  }
 
   const panel = open ? (
     <div
@@ -145,93 +150,36 @@ export default function BankSelector({ value, onChange, savedCards, bankOptions 
       onMouseDown={(e) => e.stopPropagation()}
     >
       <div className="py-1.5 max-h-80 overflow-y-auto">
-
-        {/* Auto Detect */}
-        <div className="px-1.5">
+        <SectionLabel label="My Cards" />
+        <div className="px-1.5 space-y-0.5">
+          {/* None option */}
           <OptionRow
-            icon={<Zap className="w-4 h-4" />}
-            label="Auto Detect"
-            sublabel="Let the parser identify your bank"
-            selected={value.type === "auto"}
-            onClick={() => { onChange({ type: "auto" }); setOpen(false); }}
+            icon={<CreditCard className="w-4 h-4" />}
+            label="None"
+            sublabel="Enter password manually if needed"
+            selected={value.type === "none"}
+            onClick={() => { onChange({ type: "none" }); setOpen(false); }}
           />
-        </div>
-
-        {/* My Cards */}
-        {savedCards.length > 0 && (
-          <>
-            <div className="mx-3 my-1.5 border-t border-border" />
-            <SectionLabel label="My Cards" />
-            <div className="px-1.5 space-y-0.5">
-              {savedCards.map((card) => {
-                const cardLabel =
-                  card.nickname ||
-                  `${card.bank}${card.cardVariant ? ` ${card.cardVariant}` : ""}`;
-                const selected = value.type === "saved_card" && value.card.id === card.id;
-                return (
-                  <OptionRow
-                    key={card.id}
-                    icon={<CreditCard className="w-4 h-4" />}
-                    label={cardLabel}
-                    sublabel={card.password ? "Password saved" : undefined}
-                    badge={<CardTypeBadge type={card.cardType as "credit" | "debit"} />}
-                    selected={selected}
-                    onClick={() => {
-                      onChange({ type: "saved_card", card });
-                      setOpen(false);
-                    }}
-                  />
-                );
-              })}
-            </div>
-          </>
-        )}
-
-        {/* Banks */}
-        {bankOptions.length > 0 && (
-          <>
-            <div className="mx-3 my-1.5 border-t border-border" />
-            <SectionLabel label="Banks" />
-            <div className="px-1.5 space-y-0.5">
-              {bankOptions.map((bo) =>
-                bo.options.map((opt) => {
-                  const selected = value.type === "bank" && value.configId === opt.configId;
-                  return (
-                    <OptionRow
-                      key={opt.configId}
-                      icon={<Building2 className="w-4 h-4" />}
-                      label={bo.bank}
-                      sublabel={opt.cardVariant || undefined}
-                      badge={<CardTypeBadge type={opt.cardType} />}
-                      selected={selected}
-                      onClick={() => {
-                        onChange({
-                          type: "bank",
-                          configId: opt.configId,
-                          bank: bo.bank,
-                          cardType: opt.cardType,
-                          cardVariant: opt.cardVariant,
-                        });
-                        setOpen(false);
-                      }}
-                    />
-                  );
-                })
-              )}
-            </div>
-          </>
-        )}
-
-        {/* Parse with AI */}
-        <div className="mx-3 my-1.5 border-t border-border" />
-        <div className="px-1.5 pb-1">
-          <OptionRow
-            icon={<Sparkles className="w-4 h-4 text-accent" />}
-            label="Parse with AI"
-            sublabel="For unsupported banks — reads any format"
-            selected={value.type === "ai"}
-            onClick={() => { onChange({ type: "ai" }); setOpen(false); }}
-          />
+          {savedCards.map((card) => {
+            const cardLabel =
+              card.nickname ||
+              `${card.bank}${card.cardVariant ? ` ${card.cardVariant}` : ""}`;
+            const selected = value.type === "saved_card" && value.card.id === card.id;
+            return (
+              <OptionRow
+                key={card.id}
+                icon={<CreditCard className="w-4 h-4" />}
+                label={cardLabel}
+                sublabel={card.password ? "Password saved" : undefined}
+                badge={<CardTypeBadge type={card.cardType as "credit" | "debit"} />}
+                selected={selected}
+                onClick={() => {
+                  onChange({ type: "saved_card", card });
+                  setOpen(false);
+                }}
+              />
+            );
+          })}
         </div>
       </div>
     </div>
@@ -240,10 +188,10 @@ export default function BankSelector({ value, onChange, savedCards, bankOptions 
   return (
     <div>
       <label className="block text-xs font-medium text-text-secondary mb-2">
-        Bank / Card
+        Saved Card{" "}
+        <span className="text-text-muted font-normal">— optional, auto-fills password</span>
       </label>
 
-      {/* Trigger */}
       <button
         ref={triggerRef}
         type="button"
@@ -255,19 +203,11 @@ export default function BankSelector({ value, onChange, savedCards, bankOptions 
         }`}
       >
         <span className="text-text-muted flex-shrink-0">
-          {value.type === "auto" && <Zap className="w-4 h-4" />}
-          {value.type === "ai" && <Sparkles className="w-4 h-4 text-accent" />}
-          {value.type === "saved_card" && <CreditCard className="w-4 h-4" />}
-          {value.type === "bank" && <Building2 className="w-4 h-4" />}
+          <CreditCard className="w-4 h-4" />
         </span>
-        <span
-          className={`flex-1 text-left truncate font-medium ${
-            isAi ? "text-accent" : "text-text-primary"
-          }`}
-        >
+        <span className="flex-1 text-left truncate font-medium text-text-primary">
           {selectionLabel(value)}
         </span>
-        {value.type === "bank" && <CardTypeBadge type={value.cardType} />}
         {value.type === "saved_card" && (
           <CardTypeBadge type={value.card.cardType as "credit" | "debit"} />
         )}
@@ -276,7 +216,6 @@ export default function BankSelector({ value, onChange, savedCards, bankOptions 
         />
       </button>
 
-      {/* Portal — renders outside overflow-hidden ancestors */}
       {typeof document !== "undefined" && panel
         ? createPortal(panel, document.body)
         : null}

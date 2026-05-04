@@ -8,20 +8,9 @@ export type SavedCard = {
   nickname: string | null;
 };
 
-export type BankOption = {
-  bank: string;
-  options: {
-    configId: string;
-    cardType: "credit" | "debit";
-    cardVariant: string | null;
-  }[];
-};
-
 export type BankSelection =
-  | { type: "auto" }
-  | { type: "saved_card"; card: SavedCard }
-  | { type: "bank"; configId: string; bank: string; cardType: "credit" | "debit"; cardVariant?: string | null }
-  | { type: "ai" };
+  | { type: "none" }
+  | { type: "saved_card"; card: SavedCard };
 
 export type FormValues = {
   file: FileList;

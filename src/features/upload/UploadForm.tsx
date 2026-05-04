@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { dropzoneVariants, fileEntryVariants } from "@/lib/motion";
-import type { BankOption, BankSelection, FormValues, SavedCard } from "./types";
+import type { BankSelection, FormValues, SavedCard } from "./types";
 import BankSelector from "./BankSelector";
 
 type Props = {
@@ -24,7 +24,6 @@ type Props = {
   isLoading: boolean;
   error: string | null;
   savedCards?: SavedCard[];
-  bankOptions?: BankOption[];
 };
 
 export default function UploadForm({
@@ -32,13 +31,12 @@ export default function UploadForm({
   isLoading,
   error,
   savedCards = [],
-  bankOptions = [],
 }: Props) {
   const [file, setFile] = useState<File | null>(null);
   const [password, setPassword] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [isPasswordProtected, setIsPasswordProtected] = useState(false);
-  const [bankSelection, setBankSelection] = useState<BankSelection>({ type: "auto" });
+  const [bankSelection, setBankSelection] = useState<BankSelection>({ type: "none" });
 
   const selectedCardPassword =
     bankSelection.type === "saved_card" ? (bankSelection.card.password ?? "") : "";
@@ -184,12 +182,11 @@ export default function UploadForm({
             </motion.div>
           </div>
 
-          {/* Bank / Card selector */}
+          {/* Saved card selector (password auto-fill only) */}
           <BankSelector
             value={bankSelection}
             onChange={handleBankChange}
             savedCards={savedCards}
-            bankOptions={bankOptions}
           />
 
           {/* Password field */}

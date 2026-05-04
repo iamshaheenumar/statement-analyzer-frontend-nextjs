@@ -64,7 +64,7 @@ async function getData(userId: string, month?: string, year?: string) {
     (acc, tx) => {
       const credit = tx.credit ? Number(tx.credit) : 0;
       const debit = tx.debit ? Number(tx.debit) : 0;
-      const isCreditCard = tx.statement.card_type != null || tx.statement.credit_limit != null;
+      const isCreditCard = tx.statement.card_type === 'credit' || tx.statement.credit_limit != null;
       if (credit > 0 && !isCreditCard) acc.income += credit;
       if (debit > 0) acc.expenses += debit;
       return acc;

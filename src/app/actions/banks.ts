@@ -1,8 +1,12 @@
 "use server";
 
 import prisma from "@/services/prisma";
-import type { BankOption } from "@/features/upload/types";
 import type { ParserConfigData } from "@/lib/parsers/configParser";
+
+type BankOption = {
+  bank: string;
+  options: { configId: string; cardType: "credit" | "debit"; cardVariant: string | null }[];
+};
 
 export async function getAvailableBanksAction(): Promise<BankOption[]> {
   const configs = await prisma.parserConfig.findMany({

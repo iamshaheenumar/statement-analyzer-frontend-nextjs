@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BarChart2, LayoutDashboard, ClipboardList, Upload, LogOut, LogIn, CreditCard, Sparkles, Building2, Sun, Moon, Monitor, Tag, Menu, X } from "lucide-react";
+import { BarChart2, LayoutDashboard, ClipboardList, Upload, LogOut, LogIn, CreditCard, Sun, Moon, Monitor, Tag, Menu, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -12,14 +12,10 @@ const AUTHED_NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/statements", label: "Statements", icon: ClipboardList },
   { href: "/cards", label: "Cards", icon: CreditCard },
-  { href: "/parsers", label: "Parsers", icon: Sparkles },
-  { href: "/banks", label: "Banks", icon: Building2 },
   { href: "/settings/categories", label: "Categories", icon: Tag },
 ];
 
-const GUEST_NAV_LINKS = [
-  { href: "/banks", label: "Banks", icon: Building2 },
-];
+const GUEST_NAV_LINKS: typeof AUTHED_NAV_LINKS = [];
 
 function ThemeToggle() {
   const { theme, setTheme, resolvedTheme } = useTheme();

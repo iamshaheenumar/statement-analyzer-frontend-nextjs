@@ -2,6 +2,7 @@ import prisma from "@/services/prisma";
 import { getUser } from "@/lib/supabase/server";
 import SavedHeader from "./components/SavedHeader";
 import TransactionsTable from "./components/TransactionsTable";
+import ExpenseBreakdown from "./components/ExpenseBreakdown";
 import { AlertCircle } from "lucide-react";
 
 type Props = { id: string };
@@ -85,6 +86,7 @@ export default async function ViewSaved({ id }: Props) {
   return (
     <div className="space-y-4">
       <SavedHeader statement={statement} />
+      <ExpenseBreakdown transactions={statement.transactions} currency={statement.currency} />
       <TransactionsTable
         transactions={statement.transactions}
         allCategories={allCategories.map((c) => ({
