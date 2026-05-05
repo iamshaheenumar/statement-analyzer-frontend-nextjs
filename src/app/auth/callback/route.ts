@@ -6,11 +6,12 @@ import type { NextRequest } from "next/server";
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const redirect = searchParams.get("redirect") || "/dashboard";
+
+  const cookieStore = await cookies();
+  const rawRedirect = cookieStore.get("post_auth_redirect")?.value;
+  const redirect = rawRedirect ? decodeURIComponent(rawRedirect) : "/dashboard";
 
   if (code) {
-    const cookieStore = await cookies();
-
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -30,7 +31,9 @@ export async function GET(request: NextRequest) {
 
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      return NextResponse.redirect(`${origin}${redirect}`);
+      const response = NextResponse.redirect(`${origin}${redirect}`);
+      response.cookies.set("post_auth_redirect", "", { path: "/", maxAge: 0 });
+      return response;
     }
   }
 
