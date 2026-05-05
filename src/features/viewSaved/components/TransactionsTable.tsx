@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { ArrowDown, ArrowUp, FileText, Download, Copy, Check, Tag } from "lucide-react";
+import { ArrowDown, ArrowUp, FileText, Download, Copy, Check, Tag, Table2, Sheet } from "lucide-react";
 import { toast } from "sonner";
 import { formatDate } from "@/utils/date";
 import { updateTransactionCategoryAction } from "@/app/actions/categories";
@@ -141,6 +141,7 @@ export default function TransactionsTable({
 }: Props) {
   const [transactions, setTransactions] = useState(initialTransactions);
   const [copied, setCopied] = useState(false);
+  const [viewMode, setViewMode] = useState<"table" | "spreadsheet">("table");
 
   const handleCategoryUpdate = (txId: number, categoryId: string, category: CategoryOption) => {
     setTransactions((prev) =>
@@ -174,36 +175,132 @@ export default function TransactionsTable({
             {transactions.length} total
           </span>
         </p>
-        {transactions.length > 0 && (
-          <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5">
+          {/* View toggle */}
+          <div className="flex items-center rounded-lg border border-border overflow-hidden">
             <button
-              onClick={handleCopy}
-              title="Copy for Excel / Google Sheets"
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                copied
-                  ? "text-success bg-success-muted"
-                  : "text-text-secondary hover:text-text-primary hover:bg-elevated"
+              onClick={() => setViewMode("table")}
+              title="Table view"
+              className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                viewMode === "table"
+                  ? "bg-elevated text-text-primary"
+                  : "text-text-muted hover:text-text-secondary hover:bg-elevated/50"
               }`}
             >
-              {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-              <span className="hidden sm:inline">{copied ? "Copied!" : "Copy"}</span>
+              <Table2 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Table</span>
             </button>
             <button
-              onClick={handleDownload}
-              title="Download as CSV"
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-elevated rounded-lg transition-colors"
+              onClick={() => setViewMode("spreadsheet")}
+              title="Spreadsheet view"
+              className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium transition-colors border-l border-border ${
+                viewMode === "spreadsheet"
+                  ? "bg-elevated text-text-primary"
+                  : "text-text-muted hover:text-text-secondary hover:bg-elevated/50"
+              }`}
             >
-              <Download className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">CSV</span>
+              <Sheet className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Sheet</span>
             </button>
           </div>
-        )}
+
+          {transactions.length > 0 && (
+            <>
+              <button
+                onClick={handleCopy}
+                title="Copy for Excel / Google Sheets"
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                  copied
+                    ? "text-success bg-success-muted"
+                    : "text-text-secondary hover:text-text-primary hover:bg-elevated"
+                }`}
+              >
+                {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                <span className="hidden sm:inline">{copied ? "Copied!" : "Copy"}</span>
+              </button>
+              <button
+                onClick={handleDownload}
+                title="Download as CSV"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-elevated rounded-lg transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">CSV</span>
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {transactions.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-14">
           <FileText className="w-8 h-8 mb-2 text-text-muted" />
           <p className="text-sm text-text-muted">No transactions found</p>
+        </div>
+      ) : viewMode === "spreadsheet" ? (
+        /* Spreadsheet view — dense grid, all screen sizes */
+        <div className="overflow-auto max-h-[600px]">
+          <table className="w-full text-xs font-mono border-collapse">
+            <thead className="sticky top-0 z-10">
+              <tr className="bg-base">
+                <th className="border border-border px-2 py-1.5 w-8 bg-base" />
+                {["Date", "Description", "Category", `Debit (${currency})`, `Credit (${currency})`].map(
+                  (h, i) => (
+                    <th
+                      key={h}
+                      className={`border border-border px-2 py-1.5 font-semibold text-text-muted uppercase tracking-wider whitespace-nowrap text-[10px] ${
+                        i >= 3 ? "text-right" : "text-left"
+                      }`}
+                    >
+                      {h}
+                    </th>
+                  )
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {transactions.map((t, i) => (
+                <tr
+                  key={t.id}
+                  className={`hover:bg-accent/5 transition-colors duration-75 ${
+                    i % 2 === 0 ? "bg-surface" : "bg-base/50"
+                  }`}
+                >
+                  {/* Row number gutter */}
+                  <td className="border border-border px-2 py-1 text-[10px] text-text-muted text-center bg-base/80 select-none tabular-nums">
+                    {i + 1}
+                  </td>
+                  <td className="border border-border px-2 py-1 text-text-secondary whitespace-nowrap tabular-nums">
+                    {formatDate(t.transaction_date)}
+                  </td>
+                  <td className="border border-border px-2 py-1 text-text-primary max-w-[300px]">
+                    <span className="truncate block">{t.description || "—"}</span>
+                  </td>
+                  <td className="border border-border px-1.5 py-0.5">
+                    <CategorySelect
+                      transactionId={t.id}
+                      currentCategoryId={t.categoryId}
+                      allCategories={allCategories}
+                      onUpdate={(catId, cat) => handleCategoryUpdate(t.id, catId, cat)}
+                    />
+                  </td>
+                  <td className="border border-border px-2 py-1 text-right tabular-nums">
+                    {t.debit ? (
+                      <span className="text-danger font-semibold">{fmtNum(t.debit)}</span>
+                    ) : (
+                      <span className="text-text-muted">—</span>
+                    )}
+                  </td>
+                  <td className="border border-border px-2 py-1 text-right tabular-nums">
+                    {t.credit ? (
+                      <span className="text-success font-semibold">{fmtNum(t.credit)}</span>
+                    ) : (
+                      <span className="text-text-muted">—</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       ) : (
         <>

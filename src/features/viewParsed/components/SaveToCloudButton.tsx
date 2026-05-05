@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useTransition, useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { CloudUpload, LogIn } from "lucide-react";
 import { toast } from "sonner";
@@ -8,7 +8,7 @@ import type { ParsedDataWithId } from "@/features/dashboard/types";
 import { useParsedStorage } from "@/features/dashboard/useParsedStorage";
 import { saveStatementAction } from "@/app/actions/saveStatement";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { useEffect, useState } from "react";
+import SavingModal from "./SavingModal";
 
 type Props = {
   parsedData?: ParsedDataWithId | null;
@@ -20,6 +20,10 @@ type Props = {
 export default function SaveToCloudButton({ parsedData, className }: Props) {
   const [isPending, startTransition] = useTransition();
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [savePhase, setSavePhase] = useState<"saving" | "success">("saving");
+  const [savedId, setSavedId] = useState<string | null>(null);
+  const redirectTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { deleteParsed } = useParsedStorage();
   const router = useRouter();
   const supabase = createSupabaseBrowserClient();
@@ -30,6 +34,11 @@ export default function SaveToCloudButton({ parsedData, className }: Props) {
     });
   }, []);
 
+  const handleViewStatement = () => {
+    if (redirectTimeout.current) clearTimeout(redirectTimeout.current);
+    if (savedId) router.push(`/statements/${savedId}`);
+  };
+
   const handleClick = () => {
     if (!parsedData || isPending) return;
 
@@ -38,9 +47,14 @@ export default function SaveToCloudButton({ parsedData, className }: Props) {
       return;
     }
 
+    setModalOpen(true);
+    setSavePhase("saving");
+
     startTransition(async () => {
       const result = await saveStatementAction(parsedData);
       if (result && "error" in result) {
+        setModalOpen(false);
+        setSavePhase("saving");
         if (result.code === "AUTH") {
           router.push("/login");
         } else {
@@ -49,8 +63,11 @@ export default function SaveToCloudButton({ parsedData, className }: Props) {
         return;
       }
       await deleteParsed(parsedData.id);
-      toast.success("Saved to cloud");
-      router.push(`/statements/${result.id}`);
+      setSavedId(result.id);
+      setSavePhase("success");
+      redirectTimeout.current = setTimeout(() => {
+        router.push(`/statements/${result.id}`);
+      }, 1200);
     });
   };
 
@@ -83,15 +100,24 @@ export default function SaveToCloudButton({ parsedData, className }: Props) {
   }
 
   return (
-    <button
-      onClick={handleClick}
-      disabled={!parsedData || isPending}
-      className={["inline-flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent/90 disabled:bg-elevated disabled:text-text-muted text-black text-sm font-semibold rounded-lg transition-colors", className]
-        .filter(Boolean)
-        .join(" ")}
-    >
-      <CloudUpload className={`w-4 h-4 ${isPending ? "animate-pulse" : ""}`} />
-      {isPending ? "Saving…" : "Save to Cloud"}
-    </button>
+    <>
+      <button
+        onClick={handleClick}
+        disabled={!parsedData || isPending}
+        className={["inline-flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent/90 disabled:bg-elevated disabled:text-text-muted text-black text-sm font-semibold rounded-lg transition-colors", className]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        <CloudUpload className="w-4 h-4" />
+        Save to Cloud
+      </button>
+
+      <SavingModal
+        open={modalOpen}
+        phase={savePhase}
+        transactionCount={parsedData?.summary.record_count}
+        onViewStatement={handleViewStatement}
+      />
+    </>
   );
 }

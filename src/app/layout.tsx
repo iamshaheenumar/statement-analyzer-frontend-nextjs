@@ -3,6 +3,7 @@ import { Space_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import ToasterClient from "./ToasterClient";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { NavigationProgress } from "@/components/NavigationProgress";
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
@@ -41,6 +42,7 @@ export default function RootLayout({
         className={`${spaceGrotesk.variable} ${inter.variable} ${jetbrainsMono.variable} antialiased`}
       >
         <ThemeProvider>
+          <NavigationProgress />
           <ToasterClient />
           {children}
         </ThemeProvider>
